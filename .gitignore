@@ -1,0 +1,9 @@
+## RubyMine Specific
+.idea/
+*.iws
+
+## Metasploit Specific
+history
+local/*
+logs/*
+loot/*
