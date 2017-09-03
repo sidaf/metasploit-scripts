@@ -1,0 +1,12 @@
+#set consolelogging true
+#set loglevel 5
+#set sessionlogging true
+#set timestampoutput true
+#set PROMPT %T S:%S J:%J msf
+
+#load alias
+#alias history tail -10 ~/.msf4/history
+
+#load project
+#load discover
+#load wmap

@@ -1,0 +1,102 @@
+<ruby>
+	# Test and see if we have a database connected
+	begin
+		framework.db.hosts
+	rescue ::ActiveRecord::ConnectionNotEstablished
+		print_error("Database connection isn't established")
+		return
+	end
+
+	def jobwaiting(maxjobs=1)	#thread handling for poor guys ...
+		while(framework.jobs.keys.length >= maxjobs)
+			::IO.select(nil, nil, nil, 2.5)
+			#print_error("waiting for finishing some modules... active jobs: #{framework.jobs.keys.length} / threads: #{framework.threads.length}")
+		end
+	end
+
+	framework.db.workspace.hosts.each do |host|
+		host.services.each do |service|
+			next if not service.host
+			next if (service.state != 'open')
+			next if (service.name !~ /http/)
+
+			if service.web_sites.count < 1
+				print_warning("No web sites defined for service on #{host.address}:#{service.port}/#{service.proto}, skipping.")
+				next
+			end
+
+			print_line("")
+			print_line("====================================")
+			print_line("IP: #{host.address}")
+			print_line("OS: #{host.os_name}")
+			print_line("Service Name: #{service.name}")
+			print_line("Service Port: #{service.port.to_i}")
+			print_line("Service Protocol: #{service.proto}")
+			print_line("====================================")
+			print_line("")
+
+			service.web_sites.each do |site|
+				print_status("Starting discovery on #{host.address}:#{service.port}/#{service.proto}  [#{site.vhost}]")
+
+				# Crawl a web site and store information about what was found
+				# https://github.com/rapid7/metasploit-framework/blob/master/modules/auxiliary/scanner/http/crawler.rb
+				run_single("use auxiliary/scanner/http/crawler")
+				run_single("set MAX_THREADS 4")
+				run_single("set RHOST #{host.address}")
+				run_single("set RPORT #{service.port.to_i}")
+				run_single("set VHOST #{site.vhost}")
+				run_single("set DIRBUST false")
+				if(service.name == "https" or service.name == "ssl/http")
+					run_single("set SSL true")
+				else
+					run_single("set SSL false")
+				end
+				run_single("set VERBOSE true")
+				run_single("run -j")
+				run_single("back")
+
+				jobwaiting()
+
+
+				#
+				# Instead of the code below:
+				#		extend the dir_scanner module to do recursive scans and add report_web_page|form
+				#		extend the files_dir and file_same_name_dir modules and add report_web_page|form
+				#		rather than using wmap below, do the loop around teh tree here instead as will have greater control
+				#      OR
+				#   Use crawler above, then loop through each dictionary item
+				#		The crawler might need extending to exclude 404 and also to add a note for pages requiring auth
+				#
+
+				prefix = "http"
+				if(service.name == "https" or service.name == "ssl/http")
+					prefix = "https"
+				end
+
+				print_status("Site structure:")
+				run_single("wmap_sites -s #{site.vhost},#{prefix}://#{host.address}:#{service.port}")
+
+				# Add as target
+				run_single("wmap_targets -t #{site.vhost},#{prefix}://#{host.address}:#{service.port}")
+
+				# Print defined targets
+				run_single("wmap_targets -l")
+				print_line("")
+
+				# Execute modules
+				run_single("wmap_run -m dir_scanner|files_dir")
+				run_single("wmap_run -m file_same_name_dir")
+				run_single("wmap_run -m backup_file|copy_of_file|replace_ext")
+
+				# Clear target list
+				run_single("wmap_targets -c")
+
+				print_line("")
+				print_status("Finished discovery on #{host.address}:#{service.port}/#{service.proto}  [#{site.vhost}]")
+				print_line("")
+
+				return
+			end
+		end
+	end
+</ruby>

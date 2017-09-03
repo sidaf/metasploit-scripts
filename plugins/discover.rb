@@ -120,11 +120,11 @@ class Plugin::Discover < Msf::Plugin
 
       # Run an nmap scan, this will populate the database with the hosts and services
       if scan_type =~ /TCP/
-        cmd_str = "-Pn -sS -O -sV --version-all --script=default --traceroute -T4 -p #{ports * ','} --max-rtt-timeout=500ms --initial-rtt-timeout=200ms --min-rtt-timeout=200ms --open --stats-every 5s #{range}"
+        cmd_str = "-Pn -sS -O -sV --version-all --script=default --traceroute -T4 -p #{ports * ','} --max-rtt-timeout=500ms --initial-rtt-timeout=200ms --min-rtt-timeout=100ms --open --stats-every 10s #{range}"
         print_status("Running nmap with options: #{cmd_str}")
         driver.run_single("db_nmap --save #{cmd_str}")
       else
-        cmd_str = "-Pn -sU -T4 -p #{udp_ports * ','} --max-rtt-timeout=500ms --initial-rtt-timeout=200ms --min-rtt-timeout=200ms --open --stats-every 5s #{range}"
+        cmd_str = "-Pn -sU -T4 -p #{udp_ports * ','} --max-rtt-timeout=500ms --initial-rtt-timeout=200ms --min-rtt-timeout=100ms --open --stats-every 10s #{range}"
         print_status("Running nmap with options: #{cmd_str}")
         driver.run_single("db_nmap --save #{cmd_str}")
       end
@@ -148,15 +148,17 @@ class Plugin::Discover < Msf::Plugin
       smb_dom = 'WORKGROUP'
       maxjobs = 30
       verbose = false
+      dry_run = false
 
       # Define options
       opts = Rex::Parser::Arguments.new(
           '-r' => [true,  'Filter database hosts based on IP address [in CIDR notation or nmap format]'],
           '-u' => [true,  'SMB username for discovery [optional]'],
           '-p' => [true,  'SMB password for discovery [optional]'],
-          '-d' => [true,  'SMB domain for discovery [optional]'],
+          '-D' => [true,  'SMB domain for discovery [optional]'],
           '-j' => [true,  'Max number of concurrent jobs [default: 30]'],
           '-v' => [false, 'Be Verbose when running jobs'],
+          '-d' => [false, 'Dry run, show what modules would run if executed'],
           '-h' => [false, 'Help']
       )
 
@@ -174,6 +176,8 @@ class Plugin::Discover < Msf::Plugin
             maxjobs = val.to_i
           when '-v'
             verbose = true
+          when '-d'
+            dry_run = true
           when '-h'
             print_line opts.usage
             return
@@ -188,7 +192,7 @@ class Plugin::Discover < Msf::Plugin
       framework.db.workspace.hosts.each do |h|
         if filter.empty? or filter.include?(h.address)
           # Run the discovery modules for the services of each host
-          _run_version_scans(h.services.where(state: 'open'), smb_user, smb_pass, smb_dom, maxjobs, verbose)
+          _run_version_scans(h.services.where(state: 'open'), smb_user, smb_pass, smb_dom, maxjobs, verbose, dry_run)
         end
       end
     end
@@ -203,15 +207,17 @@ class Plugin::Discover < Msf::Plugin
       smb_dom = 'WORKGROUP'
       maxjobs = 30
       verbose = false
+      dry_run = false
 
       # Define options
       opts = Rex::Parser::Arguments.new(
           '-r' => [true,  'Filter database hosts based on IP address [in CIDR notation or nmap format]'],
           '-u' => [true,  'SMB username for discovery [optional]'],
           '-p' => [true,  'SMB password for discovery [optional]'],
-          '-d' => [true,  'SMB domain for discovery [optional]'],
+          '-D' => [true,  'SMB domain for discovery [optional]'],
           '-j' => [true,  'Max number of concurrent jobs [default: 30]'],
           '-v' => [false, 'Be Verbose when running jobs'],
+          '-d' => [false, 'Dry run, show what modules would run if executed'],
           '-h' => [false, 'Help']
       )
 
@@ -223,12 +229,14 @@ class Plugin::Discover < Msf::Plugin
             smb_user = val
           when '-p'
             smb_pass = val
-          when '-d'
+          when '-w'
             smb_dom = val
           when '-j'
             maxjobs = val.to_i
           when '-v'
             verbose = true
+          when '-d'
+            dry_run = true
           when '-h'
             print_line opts.usage
             return
@@ -241,13 +249,8 @@ class Plugin::Discover < Msf::Plugin
       end
 
       framework.db.workspace.hosts.each do |h|
-        if filter.empty?
-          _run_enumeration_scans(h.services.where(state: 'open'), smb_user, smb_pass, smb_dom, maxjobs, verbose)
-        else
-          if filter.include?(h.address)
-            # Run the discovery modules for the services of each host
-            _run_enumeration_scans(h.services.where(state: 'open'), smb_user, smb_pass, smb_dom, maxjobs, verbose)
-          end
+        if filter.empty? or filter.include?(h.address)
+          _run_enumeration_scans(h.services.where(state: 'open'), smb_user, smb_pass, smb_dom, maxjobs, verbose, dry_run)
         end
       end
     end
@@ -266,6 +269,7 @@ class Plugin::Discover < Msf::Plugin
       threads = 25
       maxjobs = 10
       verbose = false
+      dry_run = false
 
       # Define options
       opts = Rex::Parser::Arguments.new(
@@ -279,6 +283,7 @@ class Plugin::Discover < Msf::Plugin
           '-t' => [true,  'Max number of threads per job [default: 25]'],
           '-j' => [true,  'Max number of concurrent jobs [default: 10]'],
           '-v' => [false, 'Be Verbose when running jobs'],
+          '-d' => [false, 'Dry run, show what modules would run if executed'],
           '-h' => [false, 'Help']
       )
 
@@ -312,6 +317,8 @@ class Plugin::Discover < Msf::Plugin
             maxjobs = val.to_i
           when '-v'
             verbose = true
+          when '-d'
+            dry_run = true
           when '-h'
             print_line opts.usage
             return
@@ -324,13 +331,8 @@ class Plugin::Discover < Msf::Plugin
       end
 
       framework.db.workspace.hosts.each do |h|
-        if filter.empty?
-          _run_login_scans(h.services.where(state: 'open'), username, password, userfile, passfile, blank_passwords, user_as_pass, threads, maxjobs, verbose)
-        else
-          if filter.include?(h.address)
-            # Run the discovery modules for the services of each host
-            _run_login_scans(h.services.where(state: 'open'), username, password, userfile, passfile, blank_passwords, user_as_pass, threads, maxjobs, verbose)
-          end
+        if filter.empty? or filter.include?(h.address)
+          _run_login_scans(h.services.where(state: 'open'), username, password, userfile, passfile, blank_passwords, user_as_pass, threads, maxjobs, verbose, dry_run)
         end
       end
     end
@@ -557,7 +559,7 @@ class Plugin::Discover < Msf::Plugin
                                                          'PORTS' => (ports * ','),
                                                          'THREADS' => 5,
                                                          'CONCURRENCY' => 50,
-                                                         'ConnectTimeout' => 1})
+                                                         'ConnectTimeout' => 1}, true, verbose)
                 _jobwaiting(10, false, 'scanner')
               end
             end
@@ -570,7 +572,7 @@ class Plugin::Discover < Msf::Plugin
                 print_good("Running UDP portscan against #{t}")
                 _run_aux_module('scanner/discovery/udp_probe', {'RHOSTS' => t,
                                                                 'PORTS' => (udp_ports * ','),
-                                                                'THREADS' => 5})
+                                                                'THREADS' => 5}, true, verbose)
                 _jobwaiting(10, false, 'scanner')
               end
             end
@@ -697,164 +699,164 @@ class Plugin::Discover < Msf::Plugin
 
 
     # Run version auxiliary modules depending on whether version information exists or not
-    def _run_version_scans(services, smb_user, smb_pass, smb_dom, maxjobs, verbose)
+    def _run_version_scans(services, smb_user, smb_pass, smb_dom, maxjobs, verbose, dry_run)
       # Run version scan on discovered services
       services.each do |s|
-        if (s.port == 445) and s.info.to_s == ''
+        if (s.port == 445)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port,
                   'SMBUser' => smb_user, 'SMBPass' => smb_pass,
                   'SMBDomain' => smb_dom}
-          _run_aux_module('scanner/smb/smb_version', opts)
+          _run_aux_module('scanner/smb/smb_version', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.name.to_s == 'http' or s.port == 80) and s.info.to_s == ''
+        elsif ((s.name.to_s == 'http' and not s.name.to_s =~ /ssl\/http/) or s.port == 80)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/http/http_version', opts)
+          _run_aux_module('scanner/http/http_version', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.name.to_s =~ /https/ or s.port == 443) and s.info.to_s == ''
+        elsif (s.name.to_s =~ /https/ or s.name.to_s =~ /ssl\/http/ or s.port == 443)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port, 'SSL' => true}
-          _run_aux_module('scanner/http/http_version', opts)
+          _run_aux_module('scanner/http/http_version', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.name.to_s =~ /https/i or s.port == 443) and s.info.to_s =~ /vmware/i
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port, 'SSL' => true}
-          _run_aux_module('scanner/vmware/esx_fingerprint', opts)
+          _run_aux_module('scanner/vmware/esx_fingerprint', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.name.to_s == 'ftp' or s.port == 21) and s.info.to_s == ''
+        elsif (s.name.to_s == 'ftp' or s.port == 21)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/ftp/ftp_version', opts)
+          _run_aux_module('scanner/ftp/ftp_version', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.name.to_s == 'telnet' or s.port == 23) and s.info.to_s == ''
+        elsif (s.name.to_s == 'telnet' or s.port == 23)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/telnet/telnet_version', opts)
+          _run_aux_module('scanner/telnet/telnet_version', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.name.to_s =~ /vmware-auth|vmauth/ or s.port == 902) and s.info.to_s == ''
+        elsif (s.name.to_s =~ /vmware-auth|vmauth/ or s.port == 902)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/vmware/vmauthd_version)', opts)
+          _run_aux_module('scanner/vmware/vmauthd_version', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.name.to_s == 'ssh' or s.port == 22) and s.info.to_s == ''
+        elsif (s.name.to_s == 'ssh' or s.port == 22)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/ssh/ssh_version', opts)
+          _run_aux_module('scanner/ssh/ssh_version', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.name.to_s =~ /smpt|smtps/ or s.port.to_s =~/25|465|587/) and s.info.to_s == ''
+        elsif (s.name.to_s =~ /smpt|smtps/ or s.port.to_s =~/^25$|^465$|^587$/)
           if s.port == 465 or s.name.to_s == 'smtps'
             opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port, 'SSL' => true}
           else
             opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
           end
-          _run_aux_module('scanner/smtp/smtp_version', opts)
+          _run_aux_module('scanner/smtp/smtp_version', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.name.to_s =~ /pop3|pop3s/ or s.port.to_s =~/110|995/) and s.info.to_s == ''
+        elsif (s.name.to_s =~ /pop3|pop3s/ or s.port.to_s =~/^110$|^995$/)
           if s.port == 995 or s.name.to_s == 'pop3s'
             opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port, 'SSL' => true}
           else
             opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
           end
-          _run_aux_module('scanner/pop3/pop3_version', opts)
+          _run_aux_module('scanner/pop3/pop3_version', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.name.to_s =~ /imap|imaps/ or s.port.to_s =~/143|993/) and s.info.to_s == ''
+        elsif (s.name.to_s =~ /imap|imaps/ or s.port.to_s =~/^143$|^993$/)
           if s.port == 993 or s.name.to_s == 'imaps'
             opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port, 'SSL' => true}
           else
             opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
           end
-          _run_aux_module('scanner/imap/imap_version', opts)
+          _run_aux_module('scanner/imap/imap_version', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.name.to_s =~ /mssql|ms-sql/ or s.port == 1433) and s.info.to_s == ''
+        elsif (s.name.to_s =~ /mssql|ms-sql/ or s.port == 1433)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/mssql/mssql_version', opts)
+          _run_aux_module('scanner/mssql/mssql_version', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.name.to_s =~ /postgres|postgresql/ or s.port.to_s =~/5432|5433/) and s.info.to_s == ''
+        elsif (s.name.to_s =~ /postgres|postgresql/ or s.port.to_s =~/^5432$|^5433$/)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/postgres/postgres_version', opts)
+          _run_aux_module('scanner/postgres/postgres_version', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.name.to_s == 'mysql' or s.port == 3306) and s.info.to_s == ''
+        elsif (s.name.to_s == 'mysql' or s.port == 3306)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/mysql/mysql_version', opts)
+          _run_aux_module('scanner/mysql/mysql_version', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.name.to_s =~ /h323/ or s.port == 1720) and s.info.to_s == ''
+        elsif (s.name.to_s =~ /h323/ or s.port == 1720)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/h323/h323_version', opts)
+          _run_aux_module('scanner/h323/h323_version', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.name.to_s =~ /jetdirect/i or s.port == 9100)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/printer/printer_version_info', opts)
+          _run_aux_module('scanner/printer/printer_version_info', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.port == 623)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/ipmi/ipmi_version', opts)
+          _run_aux_module('scanner/ipmi/ipmi_version', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.port == 1521) and s.info.to_s == ''
+        elsif (s.port == 1521)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/oracle/tnslsnr_version', opts)
+          _run_aux_module('scanner/oracle/tnslsnr_version', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.name.to_s == 'wdbrpc' or s.port == 17185) and s.info.to_s == ''
+        elsif (s.name.to_s == 'wdbrpc' or s.port == 17185)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/vxworks/wdbrpc_version', opts)
+          _run_aux_module('scanner/vxworks/wdbrpc_version', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.port == 50013) and s.info.to_s == ''
+        elsif (s.port == 50013)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/vxworks/wdbrpc_version', opts)
+          _run_aux_module('scanner/vxworks/wdbrpc_version', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.port.to_s =~ /50000|50001|50002/) and s.info.to_s == ''
+        elsif (s.port.to_s =~ /50000|50001|50002/)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/db2/db2_version', opts)
+          _run_aux_module('scanner/db2/db2_version', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.port.to_s =~ /50013/) and s.info.to_s == ''
+        elsif (s.port.to_s =~ /50013/)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/sap/sap_mgmt_con_version', opts)
+          _run_aux_module('scanner/sap/sap_mgmt_con_version', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.port == 8080) and s.info.to_s == ''
+        elsif (s.port == 8080)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/http/sap_businessobjects_version_enum', opts)
+          _run_aux_module('scanner/http/sap_businessobjects_version_enum', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.name.to_s == 'winrm' or s.port == 5985) and s.info.to_s == ''
+        elsif (s.name.to_s == 'winrm' or s.port == 5985)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/winrm/winrm_auth_methods', opts)
+          _run_aux_module('scanner/winrm/winrm_auth_methods', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
         end
@@ -863,188 +865,188 @@ class Plugin::Discover < Msf::Plugin
 
 
     # Run enumeration auxiliary modules
-    def _run_enumeration_scans(services, smb_user, smb_pass, smb_dom, maxjobs, verbose)
+    def _run_enumeration_scans(services, smb_user, smb_pass, smb_dom, maxjobs, verbose, dry_run)
       # Run version scan by identified services
       services.each do |s|
         if (s.name.to_s == 'msrpc' or s.port == 135)
           opts = {'RHOSTS' => s.host.address}
-          _run_aux_module('scanner/netbios/nbname', opts)
+          _run_aux_module('scanner/netbios/nbname', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
 
         elsif (s.name.to_s == 'microsoft-ds' or s.port == 445)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port,
                   'SMBUser' => smb_user, 'SMBPass' => smb_pass, 'SMBDomain' => smb_dom}
-          _run_aux_module('scanner/smb/smb_enumusers', opts)
-          _run_aux_module('scanner/smb/smb_enumshares', opts)
-          _run_aux_module('scanner/smb/smb_lookupsid', opts)
+          _run_aux_module('scanner/smb/smb_enumusers', opts, true, verbose, dry_run)
+          _run_aux_module('scanner/smb/smb_enumshares', opts, true, verbose, dry_run)
+          _run_aux_module('scanner/smb/smb_lookupsid', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.name.to_s == 'http' or s.port == 80)
+        elsif ((s.name.to_s == 'http' and not s.name.to_s =~ /ssl\/http/) or s.port == 80)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/http/title', opts)
-          #_run_aux_module('scanner/http/robots_txt', opts)
-          #_run_aux_module('scanner/http/open_proxy', opts)
-          #_run_aux_module('scanner/http/webdav_scanner', opts)
-          #_run_aux_module('scanner/http/http_put', opts)
+          _run_aux_module('scanner/http/title', opts, true, verbose, dry_run)
+          #_run_aux_module('scanner/http/robots_txt', opts, true, verbose, dry_run)
+          #_run_aux_module('scanner/http/open_proxy', opts, true, verbose, dry_run)
+          #_run_aux_module('scanner/http/webdav_scanner', opts, true, verbose, dry_run)
+          #_run_aux_module('scanner/http/http_put', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.name.to_s =~ /https/ or s.port == 443)
+        elsif (s.name.to_s =~ /https/ or s.name.to_s =~ /ssl\/http/ or s.port == 443)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port, 'SSL' => true}
-          _run_aux_module('scanner/http/title', opts)
-          #_run_aux_module('scanner/http/robots_txt', opts)
-          #_run_aux_module('scanner/http/open_proxy', opts)
-          #_run_aux_module('scanner/http/webdav_scanner', opts)
-          #_run_aux_module('scanner/http/http_put', opts)
+          _run_aux_module('scanner/http/title', opts, true, verbose, dry_run)
+          #_run_aux_module('scanner/http/robots_txt', opts, true, verbose, dry_run)
+          #_run_aux_module('scanner/http/open_proxy', opts, true, verbose, dry_run)
+          #_run_aux_module('scanner/http/webdav_scanner', opts, true, verbose, dry_run)
+          #_run_aux_module('scanner/http/http_put', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.name.to_s =~ /https/i or s.port == 443) and s.info.to_s =~ /vmware/i
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/vmware/esx_fingerprint', opts)
+          _run_aux_module('scanner/vmware/esx_fingerprint', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.name.to_s == 'ftp' or s.port == 21)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/ftp/anonymous', opts)
+          _run_aux_module('scanner/ftp/anonymous', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.name.to_s == 'ssh' or s.port == 22)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/ssh/fortinet_backdoor', opts)
-          _run_aux_module('scanner/ssh/juniper_backdoor', opts)
+          _run_aux_module('scanner/ssh/fortinet_backdoor', opts, true, verbose, dry_run)
+          _run_aux_module('scanner/ssh/juniper_backdoor', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.name.to_s == 'telnet' or s.port == 23)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/telnet/telnet_encrypt_overflow', opts)
+          _run_aux_module('scanner/telnet/telnet_encrypt_overflow', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.name.to_s == 'smtp' or s.port.to_s =~/25|465|587/)
+        elsif (s.name.to_s == 'smtp' or s.port.to_s =~/^25$|^465$|^587$/)
           if s.port == 465
             opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port, 'SSL' => true}
           else
             opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
           end
-          _run_aux_module('scanner/smtp/smtp_enum', opts)
-          _run_aux_module('scanner/smtp/smtp_ntlm_domain', opts)
+          _run_aux_module('scanner/smtp/smtp_enum', opts, true, verbose, dry_run)
+          _run_aux_module('scanner/smtp/smtp_ntlm_domain', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.name.to_s =~ /afp/ or s.port == 548)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/afp/afp_server_info', opts)
+          _run_aux_module('scanner/afp/afp_server_info', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.name.to_s =~ /vnc/i or s.port == 5900)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/vnc/vnc_none_auth', opts)
+          _run_aux_module('scanner/vnc/vnc_none_auth', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.name.to_s =~ /jetdirect/i || s.port == 9100)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/printer/printer_ready_message', opts)
-          _run_aux_module('scanner/printer/printer_list_volumes', opts)
-          _run_aux_module('scanner/printer/printer_list_dir', opts)
-          _run_aux_module('scanner/printer/printer_download_file', opts)
-          _run_aux_module('scanner/printer/printer_env_vars', opts)
+          _run_aux_module('scanner/printer/printer_ready_message', opts, true, verbose, dry_run)
+          _run_aux_module('scanner/printer/printer_list_volumes', opts, true, verbose, dry_run)
+          _run_aux_module('scanner/printer/printer_list_dir', opts, true, verbose, dry_run)
+          _run_aux_module('scanner/printer/printer_download_file', opts, true, verbose, dry_run)
+          _run_aux_module('scanner/printer/printer_env_vars', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.port == 623)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/ipmi/ipmi_cipher_zero', opts)
-          _run_aux_module('scanner/ipmi/ipmi_dumphashes', opts)
+          _run_aux_module('scanner/ipmi/ipmi_cipher_zero', opts, true, verbose, dry_run)
+          _run_aux_module('scanner/ipmi/ipmi_dumphashes', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.name.to_s == 'rpcbind' or s.port == 111)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/nfs/nfsmount', opts)
-          _run_aux_module('scanner/misc/sunrpc_portmapper', opts)
+          _run_aux_module('scanner/nfs/nfsmount', opts, true, verbose, dry_run)
+          _run_aux_module('scanner/misc/sunrpc_portmapper', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.name.to_s == 'x11' or s.port == 6000)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/x11/open_x11', opts)
+          _run_aux_module('scanner/x11/open_x11', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.port == 17185 or s.port == 50013)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/vxworks/wdbrpc_bootline', opts)
+          _run_aux_module('scanner/vxworks/wdbrpc_bootline', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.port == 1521)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/oracle/tnspoison_checker', opts)
-          _run_aux_module('scanner/oracle/sid_enum', opts)
-          _run_aux_module('scanner/oracle/sid_brute', opts)
+          _run_aux_module('scanner/oracle/tnspoison_checker', opts, true, verbose, dry_run)
+          _run_aux_module('scanner/oracle/sid_enum', opts, true, verbose, dry_run)
+          _run_aux_module('scanner/oracle/sid_brute', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.name.to_s == 'lsnr' or s.port == 1158)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/oracle/spy_sid', opts)
+          _run_aux_module('scanner/oracle/spy_sid', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.port.to_s =~ /50013/)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/sap/sap_mgmt_con_getaccesspoints', opts)
-          _run_aux_module('scanner/sap/sap_mgmt_con_extractusers', opts)
-          _run_aux_module('scanner/sap/sap_mgmt_con_abaplog', opts)
-          _run_aux_module('scanner/sap/sap_mgmt_con_getenv', opts)
-          _run_aux_module('scanner/sap/sap_mgmt_con_getlogfiles', opts)
-          _run_aux_module('scanner/sap/sap_mgmt_con_getprocessparameter', opts)
-          _run_aux_module('scanner/sap/sap_mgmt_con_instanceproperties', opts)
-          _run_aux_module('scanner/sap/sap_mgmt_con_listlogfiles', opts)
-          _run_aux_module('scanner/sap/sap_mgmt_con_startprofile', opts)
+          _run_aux_module('scanner/sap/sap_mgmt_con_getaccesspoints', opts, true, verbose, dry_run)
+          _run_aux_module('scanner/sap/sap_mgmt_con_extractusers', opts, true, verbose, dry_run)
+          _run_aux_module('scanner/sap/sap_mgmt_con_abaplog', opts, true, verbose, dry_run)
+          _run_aux_module('scanner/sap/sap_mgmt_con_getenv', opts, true, verbose, dry_run)
+          _run_aux_module('scanner/sap/sap_mgmt_con_getlogfiles', opts, true, verbose, dry_run)
+          _run_aux_module('scanner/sap/sap_mgmt_con_getprocessparameter', opts, true, verbose, dry_run)
+          _run_aux_module('scanner/sap/sap_mgmt_con_instanceproperties', opts, true, verbose, dry_run)
+          _run_aux_module('scanner/sap/sap_mgmt_con_listlogfiles', opts, true, verbose, dry_run)
+          _run_aux_module('scanner/sap/sap_mgmt_con_startprofile', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.name.to_s =~ /proxy/i or s.port == 8080)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/http/open_proxy', opts)
+          _run_aux_module('scanner/http/open_proxy', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.name.to_s == 'couchdb' or s.port == 5984)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/couchdb/couchdb_enum', opts)
+          _run_aux_module('scanner/couchdb/couchdb_enum', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.name.to_s == 'finger' or s.port == 79)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/finger/finger_users', opts)
+          _run_aux_module('scanner/finger/finger_users', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.name.to_s == 'mysql' or s.port == 3306)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/mysql/mysql_authbypass_hashdump', opts)
+          _run_aux_module('scanner/mysql/mysql_authbypass_hashdump', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.name.to_s =~ /rmiregistry|java-rmi/i or s.port.to_s =~ /1098|1099/)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/misc/java_rmi_server', opts)
+          _run_aux_module('scanner/misc/java_rmi_server', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
         elsif (s.port == 161 and s.proto == 'udp') or (s.name.to_s =~/snmp/)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port}
-          _run_aux_module('scanner/snmp/snmp_login', opts)
+          _run_aux_module('scanner/snmp/snmp_login', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
 
           if s.creds.length > 0
@@ -1053,14 +1055,14 @@ class Plugin::Discover < Msf::Plugin
                   'RHOSTS' => s.host.address, 'RPORT' => s.port,
                   'VERSION' => '1', 'COMMUNITY' => c.pass
               }
-              _run_aux_module('scanner/snmp/snmp_enum', opts)
+              _run_aux_module('scanner/snmp/snmp_enum', opts, true, verbose, dry_run)
               _jobwaiting(maxjobs, verbose, 'scanner')
 
               opts = {
                   'RHOSTS' => s.host.address, 'RPORT' => s.port,
                   'VERSION' => '2c', 'COMMUNITY' => c.pass
               }
-              _run_aux_module('scanner/snmp/snmp_enum', opts)
+              _run_aux_module('scanner/snmp/snmp_enum', opts, true, verbose, dry_run)
               _jobwaiting(maxjobs, verbose, 'scanner')
 
               if s.host.os_name =~ /windows/i
@@ -1068,56 +1070,56 @@ class Plugin::Discover < Msf::Plugin
                     'RHOSTS' => s.host.address, 'RPORT' => s.port,
                     'VERSION' => '1', 'COMMUNITY' => c.pass
                 }
-                _run_aux_module('scanner/snmp/snmp_enumusers', opts)
+                _run_aux_module('scanner/snmp/snmp_enumusers', opts, true, verbose, dry_run)
                 _jobwaiting(maxjobs, verbose, 'scanner')
 
                 opts = {
                     'RHOSTS' => s.host.address, 'RPORT' => s.port,
                     'VERSION' => '2c', 'COMMUNITY' => c.pass
                 }
-                _run_aux_module('scanner/snmp/snmp_enumusers', opts)
+                _run_aux_module('scanner/snmp/snmp_enumusers', opts, true, verbose, dry_run)
                 _jobwaiting(maxjobs, verbose, 'scanner')
 
                 opts = {
                     'RHOSTS' => s.host.address, 'RPORT' => s.port,
                     'VERSION' => '1', 'COMMUNITY' => c.pass
                 }
-                _run_aux_module('scanner/snmp/snmp_enumshares', opts)
+                _run_aux_module('scanner/snmp/snmp_enumshares', opts, true, verbose, dry_run)
                 _jobwaiting(maxjobs, verbose, 'scanner')
 
                 opts = {
                     'RHOSTS' => s.host.address, 'RPORT' => s.port,
                     'VERSION' => '2c', 'COMMUNITY' => c.pass
                 }
-                _run_aux_module('scanner/snmp/snmp_enumshares', opts)
+                _run_aux_module('scanner/snmp/snmp_enumshares', opts, true, verbose, dry_run)
                 _jobwaiting(maxjobs, verbose, 'scanner')
               else
                 opts = {
                     'RHOSTS' => s.host.address, 'RPORT' => s.port,
                     'VERSION' => '1', 'COMMUNITY' => c.pass
                 }
-                _run_aux_module('scanner/snmp/xerox_workcentre_enumusers', opts)
+                _run_aux_module('scanner/snmp/xerox_workcentre_enumusers', opts, true, verbose, dry_run)
                 _jobwaiting(maxjobs, verbose, 'scanner')
 
                 opts = {
                     'RHOSTS' => s.host.address, 'RPORT' => s.port,
                     'VERSION' => '2c', 'COMMUNITY' => c.pass
                 }
-                _run_aux_module('scanner/snmp/xerox_workcentre_enumusers', opts)
+                _run_aux_module('scanner/snmp/xerox_workcentre_enumusers', opts, true, verbose, dry_run)
                 _jobwaiting(maxjobs, verbose, 'scanner')
 
                 opts = {
                     'RHOSTS' => s.host.address, 'RPORT' => s.port,
                     'VERSION' => '1', 'COMMUNITY' => c.pass
                 }
-                _run_aux_module('scanner/snmp/aix_version', opts)
+                _run_aux_module('scanner/snmp/aix_version', opts, true, verbose, dry_run)
                 _jobwaiting(maxjobs, verbose, 'scanner')
 
                 opts = {
                     'RHOSTS' => s.host.address, 'RPORT' => s.port,
                     'VERSION' => '2c', 'COMMUNITY' => c.pass
                 }
-                _run_aux_module('scanner/snmp/aix_version', opts)
+                _run_aux_module('scanner/snmp/aix_version', opts, true, verbose, dry_run)
                 _jobwaiting(maxjobs, verbose, 'scanner')
                 next
               end
@@ -1129,7 +1131,7 @@ class Plugin::Discover < Msf::Plugin
 
 
     # Run login auxiliary modules
-    def _run_login_scans(services, username, password, userfile, passfile, blank_passwords, user_as_pass, threads, maxjobs, verbose)
+    def _run_login_scans(services, username, password, userfile, passfile, blank_passwords, user_as_pass, threads, maxjobs, verbose, dry_run)
       # Run login scan by identified services
       services.each do |s|
         if (s.name.to_s == 'couchdb' or s.port == 5984)
@@ -1142,7 +1144,7 @@ class Plugin::Discover < Msf::Plugin
             opts.update({'USER_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'http_default_users.txt'),
                          'PASS_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'http_default_pass.txt')})
           end
-          _run_aux_module('scanner/couchdb/couchdb_login', opts)
+          _run_aux_module('scanner/couchdb/couchdb_login', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
 
         elsif (s.name.to_s == 'ftp' or s.port == 21)
@@ -1154,11 +1156,11 @@ class Plugin::Discover < Msf::Plugin
             opts.update({'USER_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'unix_users.txt'),
                          'PASS_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'adobe_top100_pass.txt')})
           end
-          _run_aux_module('scanner/ftp/ftp_login', opts)
+          _run_aux_module('scanner/ftp/ftp_login', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.name.to_s == 'mongod' or s.port.to_s =~ /27017|27018|27019|28017/)
+        elsif (s.name.to_s == 'mongod' or s.port.to_s =~ /^27017$|^27018$|^27019$|^28017$/)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port,
                   'BLANK_PASSWORDS' => blank_passwords, 'USER_AS_PASS' => user_as_pass, 'THREADS' => threads,
                   'USERNAME' => username, 'PASSWORD' => password, 'USER_FILE' => userfile, 'PASS_FILE' => passfile}
@@ -1167,7 +1169,7 @@ class Plugin::Discover < Msf::Plugin
             opts.update({'USER_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'unix_users.txt'),
                          'PASS_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'adobe_top100_pass.txt')})
           end
-          _run_aux_module('scanner/mongodb/mongodb_login', opts)
+          _run_aux_module('scanner/mongodb/mongodb_login', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
@@ -1180,7 +1182,7 @@ class Plugin::Discover < Msf::Plugin
             opts.update({'USERNAME' => 'sa',
                          'PASS_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'adobe_top100_pass.txt')})
           end
-          _run_aux_module('scanner/mssql/mssql_login', opts)
+          _run_aux_module('scanner/mssql/mssql_login', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
@@ -1193,7 +1195,7 @@ class Plugin::Discover < Msf::Plugin
             opts.update({'USERNAME' => 'root',
                          'PASS_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'adobe_top100_pass.txt')})
           end
-          _run_aux_module('scanner/mysql/mysql_login', opts)
+          _run_aux_module('scanner/mysql/mysql_login', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
@@ -1207,7 +1209,7 @@ class Plugin::Discover < Msf::Plugin
             opts.update({'USERPASS_FILE' => File.join(Msf::Config.data_directory, 'wordlists',
                                                       'oracle_default_userpass.txt')})
           end
-          _run_aux_module('scanner/oracle/isqlplus_login', opts)
+          _run_aux_module('scanner/oracle/isqlplus_login', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
 
         elsif (s.port == 1521)
@@ -1220,7 +1222,7 @@ class Plugin::Discover < Msf::Plugin
             opts.update({'USERPASS_FILE' => File.join(Msf::Config.data_directory, 'wordlists',
                                                       'oracle_default_userpass.txt')})
           end
-          _run_aux_module('scanner/oracle/oracle_login', opts)
+          _run_aux_module('scanner/oracle/oracle_login', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
@@ -1233,11 +1235,11 @@ class Plugin::Discover < Msf::Plugin
             opts.update({'USERNAME' => 'administrator',
                          'PASS_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'adobe_top100_pass.txt')})
           end
-          _run_aux_module('scanner/pcanywhere/pcanywhere_login', opts)
+          _run_aux_module('scanner/pcanywhere/pcanywhere_login', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.name.to_s =~ /pop3|pop3s/ or s.port.to_s =~/110|995/)
+        elsif (s.name.to_s =~ /pop3|pop3s/ or s.port.to_s =~/^110$|^995$/)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port,
                   'BLANK_PASSWORDS' => blank_passwords, 'USER_AS_PASS' => user_as_pass, 'THREADS' => threads,
                   'USERNAME' => username, 'PASSWORD' => password, 'USER_FILE' => userfile, 'PASS_FILE' => passfile}
@@ -1247,11 +1249,11 @@ class Plugin::Discover < Msf::Plugin
                          'PASS_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'adobe_top100_pass.txt')})
           end
           opts.update('SSL' => true) if s.port == 995 or s.name.to_s == 'pop3s'
-          _run_aux_module('scanner/pop3/pop3_login', opts)
+          _run_aux_module('scanner/pop3/pop3_login', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
-        elsif (s.name.to_s =~ /postgres|postgresql/ or s.port.to_s =~/5432|5433/)
+        elsif (s.name.to_s =~ /postgres|postgresql/ or s.port.to_s =~/^5432$|^5433$/)
           opts = {'RHOSTS' => s.host.address, 'RPORT' => s.port,
                   'BLANK_PASSWORDS' => blank_passwords, 'USER_AS_PASS' => user_as_pass, 'THREADS' => threads,
                   'USERPASS_FILE' => nil,
@@ -1261,7 +1263,7 @@ class Plugin::Discover < Msf::Plugin
             opts.update({'USER_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'postgres_default_user.txt'),
                          'PASS_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'postgres_default_pass.txt')})
           end
-          _run_aux_module('scanner/postgres/postgres_login', opts)
+          _run_aux_module('scanner/postgres/postgres_login', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
@@ -1274,7 +1276,7 @@ class Plugin::Discover < Msf::Plugin
             opts.update({'PASSWORD' => 'foobared'})
             opts.update({'PASS_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'adobe_top100_pass.txt')})
           end
-          _run_aux_module('scanner/redis/redis_login', opts)
+          _run_aux_module('scanner/redis/redis_login', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
@@ -1287,7 +1289,7 @@ class Plugin::Discover < Msf::Plugin
             opts.update({'USER_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'unix_users.txt'),
                          'PASS_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'adobe_top100_pass.txt')})
           end
-          _run_aux_module('scanner/rservices/rexec_login', opts)
+          _run_aux_module('scanner/rservices/rexec_login', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
@@ -1298,7 +1300,7 @@ class Plugin::Discover < Msf::Plugin
             # if no usernames have been specified, set defaults
             opts.update({'FROMUSER_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'rservices_from_users.txt')})
           end
-          _run_aux_module('scanner/rservices/rlogin_login', opts)
+          _run_aux_module('scanner/rservices/rlogin_login', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
@@ -1309,7 +1311,7 @@ class Plugin::Discover < Msf::Plugin
             # if no usernames have been specified, set defaults
             opts.update({'FROMUSER_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'rservices_from_users.txt')})
           end
-          _run_aux_module('scanner/rservices/rsh_login', opts)
+          _run_aux_module('scanner/rservices/rsh_login', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
@@ -1322,7 +1324,7 @@ class Plugin::Discover < Msf::Plugin
             opts.update({'USER_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'sap_common.txt'),
                          'PASS_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'adobe_top100_pass.txt')})
           end
-          _run_aux_module('scanner/sap/sap_mgmt_con_brute_login', opts)
+          _run_aux_module('scanner/sap/sap_mgmt_con_brute_login', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
@@ -1333,7 +1335,7 @@ class Plugin::Discover < Msf::Plugin
             # if no passwords have been specified, set defaults
             opts.update({'PASS_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'snmp_default_pass.txt')})
           end
-          _run_aux_module('scanner/snmp/snmp_login', opts)
+          _run_aux_module('scanner/snmp/snmp_login', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
@@ -1346,7 +1348,7 @@ class Plugin::Discover < Msf::Plugin
             opts.update({'USER_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'unix_users.txt'),
                          'PASS_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'adobe_top100_pass.txt')})
           end
-          _run_aux_module('scanner/ssh/ssh_login', opts)
+          _run_aux_module('scanner/ssh/ssh_login', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
@@ -1359,7 +1361,7 @@ class Plugin::Discover < Msf::Plugin
             opts.update({'USER_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'unix_users.txt'),
                          'PASS_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'adobe_top100_pass.txt')})
           end
-          _run_aux_module('scanner/telnet/telnet_login', opts)
+          _run_aux_module('scanner/telnet/telnet_login', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
@@ -1372,7 +1374,7 @@ class Plugin::Discover < Msf::Plugin
             opts.update({'USER_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'http_default_users.txt'),
                          'PASS_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'http_default_pass.txt')})
           end
-          _run_aux_module('scanner/vmware/vmauthd_login)', opts)
+          _run_aux_module('scanner/vmware/vmauthd_login', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
 
@@ -1384,7 +1386,7 @@ class Plugin::Discover < Msf::Plugin
             # if no passwords have been specified, set defaults
             opts.update({'PASS_FILE' => File.join(Msf::Config.data_directory, 'wordlists', 'vnc_passwords.txt')})
           end
-          _run_aux_module('scanner/vnc/vnc_login', opts)
+          _run_aux_module('scanner/vnc/vnc_login', opts, true, verbose, dry_run)
           _jobwaiting(maxjobs, verbose, 'scanner')
           next
         end
@@ -1393,20 +1395,24 @@ class Plugin::Discover < Msf::Plugin
 
 
     # Method for running auxiliary modules given the module name and options in a hash
-    def _run_aux_module(mod, opts, as_job=true, verbose=false)
+    def _run_aux_module(mod, opts, as_job=true, verbose=false, dry_run=false)
       m = framework.auxiliary.create(mod)
       if !m.nil?
         opts.each do |o, v|
           m.datastore[o] = v
         end
         m.options.validate(m.datastore)
-        m.run_simple(
-            'LocalInput' => driver.input,
-            'LocalOutput' => driver.output,
-            'RunAsJob' => as_job,
-            'Quiet' => !verbose
-        )
-        print_status("running module auxiliary/#{mod} against #{opts['RHOSTS']}:#{opts['RPORT']}")
+        if not dry_run
+          m.run_simple(
+              'LocalInput' => driver.input,
+              'LocalOutput' => driver.output,
+              'RunAsJob' => as_job,
+              'Quiet' => !verbose
+          )
+          print_status("running module auxiliary/#{mod} against #{opts['RHOSTS']}:#{opts['RPORT']}")
+        else
+          print_status("would run module auxiliary/#{mod} against #{opts['RHOSTS']}:#{opts['RPORT']}")
+        end
       else
         print_error("module auxiliary/#{mod} does not exist")
         return

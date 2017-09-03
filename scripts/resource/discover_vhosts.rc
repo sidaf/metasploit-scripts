@@ -1,0 +1,146 @@
+<ruby>
+  require 'net/dns/resolver'
+
+  begin
+    framework.db.workspace.hosts.each do |host|
+      skip_lookup = false
+      hosts_vhosts = []
+
+      host.services.each do |service|
+        # Cycle through hosts, only analyse ones with a http[s] service
+        next if not service.host
+        next if (service.proto != 'tcp')
+        next if (service.state != 'open')
+        next if (service.name !~ /http/)
+
+        if not skip_lookup
+          print_status("Discovering virtual host entries for #{host.address}")
+
+          print_status("\tPerforming Bing search")
+          # https://github.com/rapid7/metasploit-framework/blob/master/modules/auxiliary/gather/searchengine_subdomains_collector.rb
+          results = []
+          begin
+            dork = "IP:#{host.address}"
+            searches = ['1', '51', '101', '151', '201', '251', '301', '351', '401', '451']
+
+            cli = Rex::Proto::Http::Client.new('www.bing.com')
+            cli.connect
+
+            searches.each do |num|
+              req = cli.request_cgi(
+                'method' => 'GET',
+                'uri' => '/search',
+                'vars_get' => {
+                  'FROM' => 'HPCNEN',
+                  'setmkt' => 'en-us',
+                  'setlang' => 'en-us',
+                  'first' => num,
+                  'q' => dork
+              })
+              resp = cli.send_recv(req)
+              next unless resp and resp.code == 200
+              html = resp.get_html_document
+              matches = html.search('cite')
+              matches.each do |match|
+                result = match.text
+                next unless result
+                result.to_s.downcase!
+                result.to_s.sub!(/^.*\/\//, '')
+                results << result
+              end
+            end
+
+            cli.close
+          rescue Exception => e
+            print_line e
+          end
+          results.uniq.each do |result|
+            print_good("\t\t#{result}")
+            hosts_vhosts << result.to_s
+          end
+
+          print_status("\tPerforming reverse DNS lookup")
+          dns = Net::DNS::Resolver.new
+          resp = dns.query(host.address, nil)
+          if not resp.blank? and not resp.answer.blank?
+            resp.answer.each do |r|
+              next unless r.class == Net::DNS::RR::PTR
+              result = r.ptr.gsub(/\.$/, '')
+              print_good("\t\t#{result}")
+              hosts_vhosts << result.to_s
+            end
+          end
+
+          # Done at host level, continue only at service level now
+          skip_lookup = true
+        end
+
+        service_vhosts = []
+
+        # Brute force!?
+        # https://github.com/rapid7/metasploit-framework/blob/master/modules/auxiliary/scanner/http/vhost_scanner.rb
+
+        # We are only interested in https based services that present a certificate
+        if (service.name == 'https' or service.name == 'ssl/http')
+          print_status("\tAnalysing SSL certificate presented on port #{service.port}/#{service.proto}")
+          # https://github.com/rapid7/metasploit-framework/blob/master/modules/auxiliary/scanner/http/cert.rb
+          # https://github.com/rapid7/metasploit-framework/blob/master/modules/auxiliary/scanner/http/ssl.rb
+          begin
+            sock = Rex::Socket::Tcp.create('PeerHost'=> host.address, 'PeerPort' => service.port,'SSL' => true, 'SSLVerifyMode' => 'NONE')
+            cert  = OpenSSL::X509::Certificate.new(sock.peer_cert)
+            sock.close
+
+            if cert
+              cert.subject.to_a.each do |n|
+                if n[0] == 'CN'
+                  print_good("\t\t#{n[1]}")
+                end
+              end
+              subject_alt_name = cert.extensions.find {|e| e.oid == "subjectAltName"}
+              subject_alt_name.value.to_s.split(',').each do |san|
+                v = san.split(':').map { |s| s.strip }
+                if v[0].upcase == 'DNS'
+                  print_good("\t\t#{v[1]}")
+                  service_vhosts << v[1].to_s
+                end
+              end
+            end
+          rescue
+          end
+        end
+
+        print_line("")
+        print_status("Adding discovered vhosts to wmap sites:")
+        vhosts = hosts_vhosts + service_vhosts
+        vhosts.uniq!
+        vhosts.each do |vhost|
+          prefix = "http"
+          if(service.name == "https" or service.name == "ssl/http")
+            prefix = "https"
+          end
+          print_line("\t#{vhost},#{prefix}://#{host.address}:#{service.port}")
+          run_single("wmap_sites -a #{vhost},#{prefix}://#{host.address}:#{service.port}")
+
+          #report_note(:host	  => host.address,
+          #            :proto  => service.proto,
+          #            :sname  => service.name,
+          #            :port	  => service.port,
+          #            :type	  => 'VHOST',
+          #            :data	  => vhost,
+          #            :update => :unique_data)
+          # https://github.com/rapid7/metasploit-framework/blob/master/modules/auxiliary/scanner/http/vhost_scanner.rb
+
+          #report_web_site(:host => host.address,
+          #                :port => service.port,
+          #                :ssl => ssl,
+          #                :vhost => vhost,
+          #                :info => nil)
+          # https://github.com/rapid7/metasploit-framework/blob/master/lib/msf/core/exploit/http/client.rb
+        end
+
+      end
+
+      # Cycle through vhost entries
+    end
+  end
+</ruby>

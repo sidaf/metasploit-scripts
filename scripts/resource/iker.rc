@@ -1,0 +1,37 @@
+<ruby>
+  hosts = []
+  begin
+    framework.db.services.each do |service|
+      if (service.proto == 'udp' and service.port == 500 and service.state == 'open')
+        hosts << {'address' => service.host.address, 'port' => service.port, 'proto' => service.proto}
+      end
+    end
+  end
+
+  hosts.each do |host|
+    cmd = "iker.py -v #{host['address']}"
+    begin
+      print_status "Running iker.py against #{host['address']}"
+      pipe = ::Open3::popen3(cmd)
+      pid = pipe.last.pid
+      print_status "#{cmd}  (PID: #{pid})"
+      temp_threads = []
+      temp_threads << framework.threads.spawn('iker-stdout', false, pipe[1]) do |p_1|
+        p_1.each_line do |out|
+          print_line "#{out.strip}"
+        end
+      end
+
+      temp_threads << framework.threads.spawn('iker-stderr', false, pipe[2]) do |p_2|
+        np_2.each_line do |err|
+          next if err.strip.empty?
+          print_line "#{err.strip}"
+        end
+      end
+
+      temp_threads.map {|t| t.join rescue nil}
+      pipe.each {|p| p.close rescue nil}
+    rescue ::IOError
+    end
+  end
+</ruby>
