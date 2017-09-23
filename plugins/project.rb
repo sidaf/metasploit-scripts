@@ -166,7 +166,6 @@ module Msf
       # List current projects created by the plugin
       def list
         current_workspace = framework.db.workspace.name
-        print_line('List of projects:')
         project_list.each do |p|
           if current_workspace == p
             print_line("\t* #{p}")
@@ -244,7 +243,6 @@ module Msf
         else
           print_error('A database most be configured and connected to create a project')
         end
-
         return true
       end
 
@@ -474,10 +472,9 @@ module Msf
           ::FileUtils.mkdir_p(archive_path)
         end
 
-        print_line 'Version 1.4.1'
-        print_line 'Project plugin loaded.'
+        print_status 'Project plugin version 1.4.1 loaded'
       else
-        print_error('This plugin requires the framework to be connected to a Database!')
+        raise 'Database not connected (try db_connect)'
       end
     end
 

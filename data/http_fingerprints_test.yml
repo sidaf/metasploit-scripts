@@ -1,0 +1,40 @@
+---
+- probes:
+  - method: GET
+    path: /extract.xml
+  category: test
+  matches:
+  - output: Test extract \1.\2.\3 (rev. \4)
+    match: <major>([^<]*)</major>.*<minor>([^<]*)</minor>.*<build>([^<]*)</build>.*<revision>([^<]*)</revision>
+- probes:
+  - method: HEAD
+    path: /test1/
+  - method: HEAD
+    path: /test2/
+  - method: HEAD
+    path: /test3/
+  category: test
+  matches:
+  - output: Test multiple probes with no match defined (should only hit test1)
+- probes:
+  - method: GET
+    path: /test1.html
+  - method: GET
+    path: /test2.html
+  - method: GET
+    path: /test3.html
+  category: test
+  matches:
+  - output: Test multiple matches (wrong!)
+    match: <title>Test9
+  - output: Test multiple matches (should only report this)
+    match: <title>Test2
+  - output: Test multiple matches (should never get here)
+    match: <title>Test3
+- probes:
+  - method: GET
+    path: /test4.html
+  category: test
+  matches:
+  - output: Test dontmatch (should not see this)
+    dontmatch: <title>Test4

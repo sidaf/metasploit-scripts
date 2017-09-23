@@ -1,0 +1,85 @@
+<ruby>
+  ####################
+  # Helper functions #
+  ####################
+
+  # Method for running auxiliary modules given the module name and options in a hash
+  def run_auxilary_module(mod, opts, as_job=true, quiet=false, dry_run=false)
+    m = framework.auxiliary.create(mod)
+    unless m.nil?
+      opts.each do |o, v|
+        m.datastore[o] = v
+      end
+      m.options.validate(m.datastore)
+      if not dry_run
+        m.run_simple(
+          'LocalInput' => driver.input,
+          'LocalOutput' => driver.output,
+          'RunAsJob' => as_job,
+          'Quiet' => quiet
+        )
+        print_status("running module auxiliary/#{mod} against #{opts['RHOSTS']}:#{opts['RPORT']}")
+      else
+        print_status("would run module auxiliary/#{mod} against #{opts['RHOSTS']}:#{opts['RPORT']}")
+      end
+    else
+      print_error("module auxiliary/#{mod} does not exist")
+    end
+  end
+
+  # Thread handling for poor guys
+  def jobwaiting(maxjobs=50, verbose=false)
+    while(framework.jobs.keys.length >= maxjobs)
+      ::IO.select(nil, nil, nil, 2.5)
+      if verbose
+        print_status("waiting... active jobs: #{framework.jobs.keys.length} / threads: #{framework.threads.length}")
+      end
+    end
+  end
+
+  def scan_services(mod, opts={}, services=[], ssl_services=[])
+    print_line
+    print_line("-----===[ #{mod} ]===-----")
+    print_line
+    framework.db.workspace.hosts.each do |host|
+      host.services.each do |service|
+        next unless service.host and service.state == 'open'
+        next if not services.include?(service.name) and not ssl_services.include?(service.name)
+
+        _opts = { 'RHOSTS' => service.host.address, 'RPORT' => service.port }
+        if (ssl_services.include? service.name)
+          _opts.merge!( { 'SSL' => true } )
+        end
+        _opts.merge!(opts)
+
+        run_auxilary_module(mod, _opts)
+        jobwaiting
+      end
+    end
+  end
+
+  ########
+  # Main #
+  ########
+
+  # Check if we have a database connection
+  begin
+    framework.db.hosts
+  rescue ::ActiveRecord::ConnectionNotEstablished
+    print_error('Database not connected (try db_connect)')
+    return
+  end
+
+  # Options
+  services     = ['http', 'alt-http', 'http-proxy']
+  ssl_services = ['https', 'ssl/https', 'ssl/http' , 'alt-https', 'ssl/http-proxy', 'ssl/upnp', 'https-proxy']
+
+  http_version = true
+
+  # Start assessment
+
+  if http_version
+    scan_services('scanner/http/http_version', services=services, ssl_services=ssl_services)
+    jobwaiting(maxjobs=0)
+  end
+</ruby>

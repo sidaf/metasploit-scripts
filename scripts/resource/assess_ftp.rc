@@ -1,0 +1,136 @@
+<ruby>
+  # Check if we have a database connection
+  begin
+    framework.db.hosts
+  rescue ::ActiveRecord::ConnectionNotEstablished
+    print_error('Database not connected (try db_connect)')
+    return
+  end
+
+  ftp_services = ['ftp']
+  ftps_services = ['ssl/ftp', 'ftps']
+
+  ftp_version = false
+  anonymous =  false
+  ftp_login_userpass = false
+  ftp_login_other = true
+
+  if ftp_version
+    print_line
+    print_line('###############')
+    print_line('# ftp_version #')
+    print_line('###############')
+    print_line
+    framework.db.workspace.hosts.each do |host|
+      host.services.each do |service|
+        next unless service.host and service.state == 'open'
+        next if not ftp_services.include?(service.name) and not ftps_services.include?(service.name)
+
+        run_single('use auxiliary/scanner/ftp/ftp_version')
+        run_single("set RHOSTS #{host.address}")
+        run_single("set RPORT #{service.port.to_i}")
+        if (ftps_services.include? service.name)
+          run_single('set SSL true')
+        else
+          run_single('set SSL false')
+        end
+        run_single('set VERBOSE true')
+        run_single('set ShowProgress false')
+        run_single('run')
+        run_single('back')
+      end
+    end
+  end
+
+  if anonymous
+    print_line
+    print_line('#############')
+    print_line('# anonymous #')
+    print_line('#############')
+    print_line
+    framework.db.workspace.hosts.each do |host|
+      host.services.each do |service|
+        next unless service.host and service.state == 'open'
+        next if not ftp_services.include?(service.name) and not ftps_services.include?(service.name)
+
+        run_single('use auxiliary/scanner/ftp/anonymous')
+        run_single("set RHOSTS #{host.address}")
+        run_single("set RPORT #{service.port.to_i}")
+        if (ftps_services.include? service.name)
+          run_single('set SSL true')
+        else
+          run_single('set SSL false')
+        end
+        run_single('set VERBOSE true')
+        run_single('set ShowProgress false')
+        run_single('run')
+        run_single('back')
+      end
+    end
+  end
+
+  if ftp_login_userpass
+    print_line
+    print_line('########################')
+    print_line('# ftp_login (userpass) #')
+    print_line('########################')
+    print_line
+    framework.db.workspace.hosts.each do |host|
+      host.services.each do |service|
+        next unless service.host and service.state == 'open'
+        next if not ftp_services.include?(service.name) and not ftps_services.include?(service.name)
+
+        run_single('use auxiliary/scanner/ftp/ftp_login')
+        run_single("set RHOSTS #{host.address}")
+        run_single("set RPORT #{service.port.to_i}")
+        if (ftps_services.include? service.name)
+          run_single('set SSL true')
+        else
+          run_single('set SSL false')
+        end
+        run_single('set VERBOSE false')
+        run_single('set ShowProgress true')
+        run_single('set THREADS 20')
+        run_single('set SINGLE_SESSION true')
+        run_single('set USERPASS_FILE /home/sion/Tools/Scripts/wordlists/userpass/ftp-default.txt')
+        run_single('set REMOVE_USERPASS_FILE true')
+        run_single('run')
+        run_single('unset USERPASS_FILE')
+        run_single('back')
+      end
+    end
+  end
+
+  if ftp_login_other
+    print_line
+    print_line('#####################')
+    print_line('# ftp_login (other) #')
+    print_line('#####################')
+    print_line
+    framework.db.workspace.hosts.each do |host|
+      host.services.each do |service|
+        next unless service.host and service.state == 'open'
+        next if not ftp_services.include?(service.name) and not ftps_services.include?(service.name)
+
+        run_single('use auxiliary/scanner/ftp/ftp_login')
+        run_single("set RHOSTS #{host.address}")
+        run_single("set RPORT #{service.port.to_i}")
+        if (ftps_services.include? service.name)
+          run_single('set SSL true')
+        else
+          run_single('set SSL false')
+        end
+        run_single('set VERBOSE false')
+        run_single('set ShowProgress true')
+        run_single('set THREADS 20')
+        run_single('set SINGLE_SESSION true')
+        run_single('set USER_FILE /home/sion/Tools/Scripts/wordlists/users/short.txt')
+        run_single('set PASS_FILE /home/sion/Tools/Scripts/wordlists/passwords/304.txt')
+        run_single('run')
+        run_single('unset USER_FILE')
+        run_single('unset PASS_FILE')
+        run_single('back')
+      end
+    end
+  end
+</ruby>

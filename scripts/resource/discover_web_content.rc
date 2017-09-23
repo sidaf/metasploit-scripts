@@ -62,7 +62,7 @@
 				# Instead of the code below:
 				#		extend the dir_scanner module to do recursive scans and add report_web_page|form
 				#		extend the files_dir and file_same_name_dir modules and add report_web_page|form
-				#		rather than using wmap below, do the loop around teh tree here instead as will have greater control
+				#		rather than using wmap below, do the loop around the tree here instead as will have greater control
 				#      OR
 				#   Use crawler above, then loop through each dictionary item
 				#		The crawler might need extending to exclude 404 and also to add a note for pages requiring auth

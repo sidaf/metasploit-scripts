@@ -7,6 +7,6 @@
 #load alias
 #alias history tail -10 ~/.msf4/history
 
-#load project
+load project
 #load discover
 #load wmap

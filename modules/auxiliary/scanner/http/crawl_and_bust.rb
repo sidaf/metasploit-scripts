@@ -7,7 +7,6 @@ require 'rex/proto/http'
 require 'msf/core'
 
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Auxiliary::HttpCrawler
 
   def initialize
@@ -19,8 +18,7 @@ class MetasploitModule < Msf::Auxiliary
     )
 
     register_options([
-      OptPath.new('DICTIONARY', [false, "Path of word dictionary to use",
-                                 File.join(Msf::Config.data_directory, "wmap", "wmap_dirs.txt")])
+      OptPath.new('DICTIONARY', [false, 'Path of word dictionary to use', File.join(Msf::Config.data_directory, 'wmap', 'wmap_dirs.txt')])
     ], self.class)
 
     register_advanced_options([
@@ -34,7 +32,6 @@ class MetasploitModule < Msf::Auxiliary
   end
 
   def dirs
-    #@@dirs ||= File.readlines((datastore['DICTIONARY']))
     @dirs ||= nil
     return @dirs if @dirs
     @dirs = File.readlines((datastore['DICTIONARY']))
@@ -46,7 +43,7 @@ class MetasploitModule < Msf::Auxiliary
       dirs.each do |line|
         next if line.nil? or line.strip.empty?
         dir = line.strip
-        dir = dir + '/' if not dir.end_with? '/'
+        dir += '/' unless dir.end_with? '/'
         links << page.to_absolute(URI(dir)) rescue next
       end
     end
@@ -61,20 +58,20 @@ class MetasploitModule < Msf::Auxiliary
     patterns = opt_patterns_to_regexps( datastore['ExcludePathPatterns'].to_s )
     patterns = patterns.map { |r| "(#{r.source})" }
 
-    Regexp.new( [["(#{super.source})"] | patterns].join( '|' ) )
+    Regexp.new([["(#{super.source})"] | patterns].join('|'))
   end
 
   def run
     super
 
     if form = form_from_url( @current_site, datastore['URI'] )
-      print_status((" " * 24) + "FORM: #{form[:method]} #{form[:path]}")
-      report_web_form( form )
+      print_status((' ' * 24) + "FORM: #{form[:method]} #{form[:path]}")
+      report_web_form(form)
       self.form_count += 1
     end
   end
 
-  def for_each_page( &block )
+  def for_each_page(&block)
     @for_each_page_blocks << block if block_given?
   end
 
@@ -87,41 +84,41 @@ class MetasploitModule < Msf::Auxiliary
   # - The occurence of any form (web.form :path, :type (get|post|path_info), :params)
   #
   def crawler_process_page(t, page, cnt)
-    msg = "[#{"%.5d" % cnt}/#{"%.5d" % max_page_count}]    #{page.code || "ERR"} - #{t[:vhost]} - #{page.url}"
+    msg = "[#{"%.5d" % cnt}/#{"%.5d" % max_page_count}]    #{page.code || 'ERR'} - #{t[:vhost]} - #{page.url}"
     case page.code
-      when 301,302
-        if page.headers and page.headers["location"]
-          print_status(msg + " -> " + page.headers["location"].to_s)
-        else
-          print_status(msg)
-        end
-      when 500...599
-        # XXX: Log the fact that we hit an error page
-        print_good(msg)
-      when 401
-        print_good(msg + " - requires authentication: #{page.headers['WWW-Authenticate'].to_s}")
-        report_note(
-            :host	=> rhost,
-            :port	=> rport,
-            :proto => 'tcp',
-            :sname	=> (ssl ? 'https' : 'http'),
-            :type	=> 'WWW_AUTHENTICATE',
-            :data	=> "#{t[:vhost]} - #{page.url} Auth: #{page.headers['WWW-Authenticate'].to_s}",
-            :update => :unique_data
-        )
-      when 403
-        print_good(msg)
-      when 200
-        print_status(msg)
-      when 404
-        # do nothing
-        print_error(msg)
+    when 301,302
+      if page.headers and page.headers['location']
+        print_status(msg + ' -> ' + page.headers['location'].to_s)
       else
-        print_error(msg)
+        print_status(msg)
+      end
+    when 500...599
+      # XXX: Log the fact that we hit an error page
+      print_good(msg)
+    when 401
+      print_good(msg + " - requires authentication: #{page.headers['WWW-Authenticate'].to_s}")
+      report_note(
+        :host	  => rhost,
+        :port	  => rport,
+        :proto  => 'tcp',
+        :sname	=> (ssl ? 'https' : 'http'),
+        :type	  => 'WWW_AUTHENTICATE',
+        :data	  => "#{t[:vhost]} - #{page.url} Auth: #{page.headers['WWW-Authenticate'].to_s}",
+        :update => :unique_data
+      )
+    when 403
+      print_good(msg)
+    when 200
+      print_status(msg)
+    when 404
+      # do nothing
+      print_error(msg)
+    else
+      print_error(msg)
     end
 
     # Only process interesting response codes
-    return if not [302, 301, 200, 500, 401, 403].include?(page.code)
+    return unless [302, 301, 200, 500, 401, 403].include?(page.code)
 
     #
     # Process the web page
@@ -140,7 +137,7 @@ class MetasploitModule < Msf::Auxiliary
       info[:ctype] = page.headers['content-type']
     end
 
-    if !page.cookies.empty?
+    unless page.cookies.empty?
       info[:cookie] = page.cookies
     end
 
@@ -169,37 +166,36 @@ class MetasploitModule < Msf::Auxiliary
     forms = []
     form_template = { :web_site => t[:site] }
 
-    if form = form_from_url( t[:site], page.url )
+    if form = form_from_url( t[:site], page.url)
       forms << form
     end
 
     if page.doc
       page.doc.css("form").each do |f|
-
         target = page.url
 
         if f['action'] and not f['action'].strip.empty?
           action = f['action']
 
           # Prepend relative URLs with the current directory
-          if action[0,1] != "/" and action !~ /\:\/\//
+          if action[0,1] != '/' and action !~ /\:\/\//
             # Extract the base href first
             base = target.path.gsub(/(.*\/)[^\/]+$/, "\\1")
-            page.doc.css("base").each do |bref|
+            page.doc.css('base').each do |bref|
               if bref['href']
                 base = bref['href']
               end
             end
-            action = (base + "/").sub(/\/\/$/, '/') + action
+            action = (base + '/').sub(/\/\/$/, '/') + action
           end
 
-          target = page.to_absolute(URI( action )) rescue next
+          target = page.to_absolute(URI(action)) rescue next
 
           if not page.in_domain?(target)
             # Replace 127.0.0.1 and non-qualified hostnames with our page.host
             # ex: http://localhost/url OR http://www01/url
             target_uri = URI(target.to_s)
-            if (target_uri.host.index(".").nil? or target_uri.host == "127.0.0.1")
+            if target_uri.host.index('.').nil? or target_uri.host == '127.0.0.1'
               target_uri.host = page.url.host
               target = target_uri
             else
@@ -209,17 +205,17 @@ class MetasploitModule < Msf::Auxiliary
         end
 
         # skip this form if it matches exclusion criteria
-        if !(target.to_s =~ get_link_filter)
+        unless target.to_s =~ get_link_filter
           form = {}.merge!(form_template)
           form[:method] = (f['method'] || 'GET').upcase
-          form[:query]  = target.query.to_s if form[:method] != "GET"
+          form[:query]  = target.query.to_s if form[:method] != 'GET'
           form[:path]   = target.path
           form[:params] = []
           f.css('input', 'textarea').each do |inp|
             form[:params] << [inp['name'].to_s, inp['value'] || inp.content || '', { :type => inp['type'].to_s }]
           end
 
-          f.css( 'select' ).each do |s|
+          f.css('select').each do |s|
             value = nil
 
             # iterate over each option to find the default value (if there is a selected one)
@@ -231,7 +227,7 @@ class MetasploitModule < Msf::Auxiliary
             # set the first one as the default value if we don't already have one
             value ||= s.children.first['value'] || s.children.first.content rescue ''
 
-            form[:params] << [ s['name'].to_s, value.to_s, [ :type => 'select'] ]
+            form[:params] << [s['name'].to_s, value.to_s, [:type => 'select']]
           end
 
           forms << form
@@ -241,7 +237,7 @@ class MetasploitModule < Msf::Auxiliary
 
     # Report each of the discovered forms
     forms.each do |form|
-      next if not form[:method]
+      next unless form[:method]
       print_status((" " * 24) + "FORM: #{form[:method]} #{form[:path]}")
       report_web_form(form)
       self.form_count += 1
@@ -301,13 +297,11 @@ class MetasploitModule < Msf::Auxiliary
   end
 
   private
+
   def opt_patterns_to_regexps( patterns )
     magic_wildcard_replacement = Rex::Text.rand_text_alphanumeric( 10 )
     patterns.to_s.split( /[\r\n]+/).map do |p|
-      Regexp.new '^' + Regexp.escape( p.gsub( '*', magic_wildcard_replacement ) ).
-        gsub( magic_wildcard_replacement, '.*' ) + '$'
+      Regexp.new '^' + Regexp.escape(p.gsub('*', magic_wildcard_replacement)).gsub(magic_wildcard_replacement, '.*') + '$'
     end
   end
-
-
 end

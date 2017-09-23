@@ -2,6 +2,12 @@
 .idea/
 *.iws
 
+## Visual Studio Code Specific
+.vscode
+
+## Komodo Edit
+*.komodoproject
+
 ## Metasploit Specific
 history
 local/*

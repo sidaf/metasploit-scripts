@@ -1,0 +1,93 @@
+<ruby>
+  # Check if we have a database connection
+  begin
+    framework.db.hosts
+  rescue ::ActiveRecord::ConnectionNotEstablished
+    print_error('Database not connected (try db_connect)')
+    return
+  end
+
+  mysql_services = ['mysql']
+
+  mysql_version = true
+  mysql_login_userpass = true
+  mysql_login_root = true
+
+  if mysql_version
+    print_line
+    print_line('#################')
+    print_line('# mysql_version #')
+    print_line('#################')
+    print_line
+    framework.db.workspace.hosts.each do |host|
+      host.services.each do |service|
+        next unless service.host and service.state == 'open'
+        next unless mysql_services.include?(service.name)
+
+        run_single('use auxiliary/scanner/mysql/mysql_version')
+        run_single("set RHOSTS #{host.address}")
+        run_single('set VERBOSE true')
+        run_single('set ShowProgress false')
+        run_single('run')
+        run_single('back')
+      end
+    end
+  end
+
+  if mysql_login_userpass
+    print_line
+    print_line('##########################')
+    print_line('# mysql_login (userpass) #')
+    print_line('##########################')
+    print_line
+    framework.db.workspace.hosts.each do |host|
+      host.services.each do |service|
+        next unless service.host and service.state == 'open'
+        next unless mysql_services.include?(service.name)
+
+        run_single('use auxiliary/scanner/mysql/mysql_login')
+        run_single("set RHOSTS #{host.address}")
+        run_single("set RPORT #{service.port.to_i}")
+        run_single('set VERBOSE false')
+        run_single('set ShowProgress true')
+        run_single('set THREADS 50')
+        run_single('set USERPASS_FILE /home/sion/Tools/Scripts/wordlists/userpass/mysql-default.txt')
+        run_single('set REMOVE_USERPASS_FILE true')
+        run_single('run')
+        run_single('unset USERPASS_FILE')
+        run_single('back')
+      end
+    end
+  end
+
+  if mysql_login_root
+    print_line
+    print_line('######################')
+    print_line('# mysql_login (root) #')
+    print_line('######################')
+    print_line
+    framework.db.workspace.hosts.each do |host|
+      host.services.each do |service|
+        next unless service.host and service.state == 'open'
+        next unless mysql_services.include?(service.name)
+
+        run_single('use auxiliary/scanner/mysql/mysql_login')
+        run_single("set RHOSTS #{host.address}")
+        run_single("set RPORT #{service.port.to_i}")
+        run_single('set VERBOSE false')
+        run_single('set ShowProgress true')
+        run_single('set THREADS 50')
+        run_single('set USERNAME root')
+        run_single('set STOP_ON_SUCCESS true')
+        run_single('set PASS_FILE /home/sion/Tools/Scripts/wordlists/passwords/693.txt')
+        run_single('set BLANK_PASSWORDS true')
+        run_single('run')
+        run_single('unset STOP_ON_SUCCESS')
+        run_single('unset USERNAME')
+        run_single('unset PASS_FILE')
+        run_single('unset BLANK_PASSWORDS')
+        run_single('back')
+      end
+    end
+  end
+</ruby>

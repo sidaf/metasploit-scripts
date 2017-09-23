@@ -23,7 +23,7 @@
       end
 
       temp_threads << framework.threads.spawn('iker-stderr', false, pipe[2]) do |p_2|
-        np_2.each_line do |err|
+        p_2.each_line do |err|
           next if err.strip.empty?
           print_line "#{err.strip}"
         end
@@ -31,7 +31,8 @@
 
       temp_threads.map {|t| t.join rescue nil}
       pipe.each {|p| p.close rescue nil}
-    rescue ::IOError
+    rescue ::IOError => e
+      print_error e
     end
   end
 </ruby>
