@@ -6,9 +6,7 @@
 require 'msf/core'
 require 'rex/proto/http'
 require 'yaml'
-
-require_relative '../../../../lib/typhoeus/lib/typhoeus'
-require_relative '../../../../lib/ethon/lib/ethon'
+require_relative '../../../../lib/typhoeus'
 
 class MetasploitModule < Msf::Auxiliary
   include Msf::Exploit::Remote::HttpClient
@@ -162,20 +160,20 @@ class MetasploitModule < Msf::Auxiliary
                 next
               end
 
-              if response.code == 0
+              if response.code.zero?
                 print_error("#{wmap_base_url}#{base_path}#{probe['path']}, could not get a http response")
                 # move on to next probe
                 next
               end
 
               # check if 404 or error code
-              if((response.code == ecode) or (emesg and response.body.index(emesg)))
+              if (response.code == ecode) || (emesg && response.body.index(emesg))
                 vprint_status("#{wmap_base_url}#{base_path}#{probe['path']} [#{response.code}]")
                 # move on to next probe
                 next
               else
                 unless displayall
-                  unless response.code == 200 or response.code == 401
+                  unless response.code == 200 || response.code == 401
                     vprint_status("#{wmap_base_url}#{base_path}#{probe['path']} [#{response.code}]")
                     # move on to next probe
                     next
@@ -202,9 +200,7 @@ class MetasploitModule < Msf::Auxiliary
 
                 if match.key?('dontmatch')
                   success, captures = response_contains(response, match['dontmatch'])
-                  if success
-                    output = nil
-                  end
+                  output = nil if success
                 end
 
                 break if output
@@ -217,28 +213,28 @@ class MetasploitModule < Msf::Auxiliary
                 print_good("#{wmap_base_url}#{base_path}#{probe['path']} [#{response.code}] : #{output}")
 
                 report_note(
-                    :host    => ip,
-                    :port    => rport,
-                    :proto   => 'tcp',
-                    :sname   => (ssl ? 'https' : 'http'),
-                    :type    => 'web_enum',
-                    :data    => "#{wmap_base_url}#{base_path}#{probe['path']} [#{response.code}] : #{output}"
+                  :host  => ip,
+                  :port  => rport,
+                  :proto => 'tcp',
+                  :sname => (ssl ? 'https' : 'http'),
+                  :type  => 'web_enum',
+                  :data  => "#{wmap_base_url}#{base_path}#{probe['path']} [#{response.code}] : #{output}"
                 )
 
                 report_web_vuln(
-                    :host	=> ip,
-                    :port	=> rport,
-                    :vhost  => vhost,
-                    :ssl    => ssl,
-                    :path	=> "#{base_path}#{probe['path']}",
-                    :method => method,
-                    :pname  => '',
-                    :proof  => "[#{response.code}] : #{output}",
-                    :risk   => 0,
-                    :confidence   => 100,
-                    :category     => 'web_enum',
-                    :description  => 'Interesting resource enumerated',
-                    :name   => 'web_enum'
+                  :host	       => ip,
+                  :port	       => rport,
+                  :vhost       => vhost,
+                  :ssl         => ssl,
+                  :path	       => "#{base_path}#{probe['path']}",
+                  :method      => method,
+                  :pname       => '',
+                  :proof       => "[#{response.code}] : #{output}",
+                  :risk        => 0,
+                  :confidence  => 100,
+                  :category    => 'web_enum',
+                  :description => 'Interesting resource enumerated',
+                  :name        => 'web_enum'
                 )
 
                 break

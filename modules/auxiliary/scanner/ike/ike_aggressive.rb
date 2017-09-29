@@ -19,15 +19,15 @@ class MetasploitModule < Msf::Auxiliary
     )
 
     register_options(
-        [
-            Opt::RPORT(500)
-        ], self.class
+      [
+        Opt::RPORT(500)
+      ], self.class
     )
 
     register_advanced_options(
-        [
-            Opt::CPORT(500)
-        ], self.class
+      [
+        Opt::CPORT(500)
+      ], self.class
     )
 
     deregister_options('RHOST', 'THREADS')
@@ -36,10 +36,10 @@ class MetasploitModule < Msf::Auxiliary
   def run_host(ip)
     # Note, in aggressive mode, the GROUP_DESCRIPTION must be the same across all transforms and the 'diffie_helman' variable
     transforms = [
-        [ ENC_METHOD['3DES'], HASH_ALGORITHM['SHA1'], AUTH_TYPE['PSK'], GROUP_DESCRIPTION['1024'], '800b0001', '000c000400007080'],
-        [ ENC_METHOD['3DES'], HASH_ALGORITHM['MD5'],  AUTH_TYPE['PSK'], GROUP_DESCRIPTION['1024'], '800b0001', '000c000400007080'],
-        [ ENC_METHOD['DES'],  HASH_ALGORITHM['SHA1'], AUTH_TYPE['PSK'], GROUP_DESCRIPTION['1024'], '800b0001', '000c000400007080'],
-        [ ENC_METHOD['DES'],  HASH_ALGORITHM['MD5'],  AUTH_TYPE['PSK'], GROUP_DESCRIPTION['1024'], '800b0001', '000c000400007080']
+      [ ENC_METHOD['3DES'], HASH_ALGORITHM['SHA1'], AUTH_TYPE['PSK'], GROUP_DESCRIPTION['1024'], '800b0001', '000c000400007080'],
+      [ ENC_METHOD['3DES'], HASH_ALGORITHM['MD5'],  AUTH_TYPE['PSK'], GROUP_DESCRIPTION['1024'], '800b0001', '000c000400007080'],
+      [ ENC_METHOD['DES'],  HASH_ALGORITHM['SHA1'], AUTH_TYPE['PSK'], GROUP_DESCRIPTION['1024'], '800b0001', '000c000400007080'],
+      [ ENC_METHOD['DES'],  HASH_ALGORITHM['MD5'],  AUTH_TYPE['PSK'], GROUP_DESCRIPTION['1024'], '800b0001', '000c000400007080']
     ]
     aggressive = true
     diffie_helman = 2
@@ -202,38 +202,38 @@ class MetasploitModule < Msf::Auxiliary
   end
 
   ENC_METHOD = {
-      'DES'         => '80010001',
-      'IDEA'        => '80010002',
-      'BLOWFISH'    => '80010003',
-      'RC5-R16-B64' => '80010004',
-      '3DES'        => '80010005',
-      'CAST'        => '80010006',
-      'AES/128'     => ['80010007', '800E0080' ],
-      'AES/192'     => ['80010007', '800E00C0' ],
-      'AES/256'     => ['80010007', '800E0100' ]
+    'DES'         => '80010001',
+    'IDEA'        => '80010002',
+    'BLOWFISH'    => '80010003',
+    'RC5-R16-B64' => '80010004',
+    '3DES'        => '80010005',
+    'CAST'        => '80010006',
+    'AES/128'     => ['80010007', '800E0080' ],
+    'AES/192'     => ['80010007', '800E00C0' ],
+    'AES/256'     => ['80010007', '800E0100' ]
   }
 
   HASH_ALGORITHM = {
-      'MD5'      => '80020001',
-      'SHA1'     => '80020002',
-      'TIGER'    => '80020003',
-      'SHA2-256' => '80020004',
-      'SHA2-384' => '80020005',
-      'SHA2-512' => '80020006'
+    'MD5'      => '80020001',
+    'SHA1'     => '80020002',
+    'TIGER'    => '80020003',
+    'SHA2-256' => '80020004',
+    'SHA2-384' => '80020005',
+    'SHA2-512' => '80020006'
   }
 
   AUTH_TYPE = {
-      'PSK'    => '80030001',
-      'RSA'    => '80030003',
-      'ECDSA'  => '80030008',
-      'HYBRID' => '8003FADD',
-      'XAUTH'  => '8003FDE9'
+    'PSK'    => '80030001',
+    'RSA'    => '80030003',
+    'ECDSA'  => '80030008',
+    'HYBRID' => '8003FADD',
+    'XAUTH'  => '8003FDE9'
   }
 
   GROUP_DESCRIPTION = {
-      '768'  => '80040001',
-      '1024' => '80040002',
-      '1536' => '80040005',
-      '2048' => '8004000E'
+    '768'  => '80040001',
+    '1024' => '80040002',
+    '1536' => '80040005',
+    '2048' => '8004000E'
   }
 end

@@ -1,0 +1,6 @@
+[submodule "lib/typhoeus"]
+	path = lib/typhoeus
+	url = https://github.com/typhoeus/typhoeus
+[submodule "lib/ethon"]
+	path = lib/ethon
+	url = https://github.com/typhoeus/ethon
