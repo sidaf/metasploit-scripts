@@ -1,14 +1,14 @@
-## RubyMine Specific
+## RubyMine
 .idea/
 *.iws
 
-## Visual Studio Code Specific
+## Visual Studio Code
 .vscode
 
 ## Komodo Edit
 *.komodoproject
 
-## Metasploit Specific
+## Metasploit
 history
 local/*
 logs/*

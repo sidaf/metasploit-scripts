@@ -12,8 +12,8 @@ class MetasploitModule < Msf::Auxiliary
     super(
         'Name'        => 'IKEv1 Aggressive Mode Scanner',
         'Description' => %q{
-        Blah.
-      },
+          Blah.
+        },
         'Author'      => 'Sion Dafydd <sion.dafydd[at]gmail.com>',
         'License'     => MSF_LICENSE
     )
@@ -34,7 +34,7 @@ class MetasploitModule < Msf::Auxiliary
   end
 
   def run_host(ip)
-    # Note, in aggressive mode, the GROUP_DESCRIPTION must be the same across all transforms and the 'diffie_helman' variable
+    # Note, in aggressive mode, the GROUP_DESCRIPTION must be the same across all transforms and the 'diffie_hellman' variable
     transforms = [
       [ ENC_METHOD['3DES'], HASH_ALGORITHM['SHA1'], AUTH_TYPE['PSK'], GROUP_DESCRIPTION['1024'], '800b0001', '000c000400007080'],
       [ ENC_METHOD['3DES'], HASH_ALGORITHM['MD5'],  AUTH_TYPE['PSK'], GROUP_DESCRIPTION['1024'], '800b0001', '000c000400007080'],
@@ -42,7 +42,7 @@ class MetasploitModule < Msf::Auxiliary
       [ ENC_METHOD['DES'],  HASH_ALGORITHM['MD5'],  AUTH_TYPE['PSK'], GROUP_DESCRIPTION['1024'], '800b0001', '000c000400007080']
     ]
     aggressive = true
-    diffie_helman = 2
+    diffie_hellman = 2
     identifier = 'blah'
 
     debug = true
@@ -50,7 +50,7 @@ class MetasploitModule < Msf::Auxiliary
     begin
       connect_udp unless debug
 
-      isakmp_pkt = generate_packet(rport, transforms, aggressive, diffie_helman, identifier, debug)
+      isakmp_pkt = generate_packet(rport, transforms, aggressive, diffie_hellman, identifier, debug)
 
       return if debug
 
