@@ -13,12 +13,12 @@
       m.options.validate(m.datastore)
       if not dry_run
         m.run_simple(
-          'LocalInput' => driver.input,
-          'LocalOutput' => driver.output,
+          'LocalInput' => self.input,
+          'LocalOutput' => self.output,
           'RunAsJob' => as_job,
           'Quiet' => quiet
         )
-        print_status("running module auxiliary/#{mod} against #{opts['RHOSTS']}:#{opts['RPORT']}")
+        #print_status("running module auxiliary/#{mod} against #{opts['RHOSTS']}:#{opts['RPORT']}")
       else
         print_status("would run module auxiliary/#{mod} against #{opts['RHOSTS']}:#{opts['RPORT']}")
       end
@@ -37,7 +37,7 @@
     end
   end
 
-  def scan_services(mod, opts={}, services=[], ssl_services=[])
+  def scan_services(mod, opts, services=[], ssl_services=[])
     print_line
     print_line("-----===[ #{mod} ]===-----")
     print_line
@@ -53,7 +53,7 @@
         _opts.merge!(opts)
 
         run_auxilary_module(mod, _opts)
-        jobwaiting
+        jobwaiting(maxjobs=1)
       end
     end
   end
@@ -72,14 +72,13 @@
 
   # Options
   services     = ['http', 'alt-http', 'http-proxy']
-  ssl_services = ['https', 'ssl/https', 'ssl/http' , 'alt-https', 'ssl/http-proxy', 'ssl/upnp', 'https-proxy']
+  ssl_services = ['https', 'ssl/https', 'ssl/http', 'alt-https', 'ssl/http-proxy', 'ssl/upnp', 'https-proxy', 'ssl/https-alt', 'ssl/blackice-icecap']
 
   http_version = true
 
   # Start assessment
 
   if http_version
-    scan_services('scanner/http/http_version', services=services, ssl_services=ssl_services)
-    jobwaiting(maxjobs=0)
+    scan_services(mod='scanner/http/http_version', opts={}, services=services, ssl_services=ssl_services)
   end
 </ruby>

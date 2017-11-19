@@ -2327,6 +2327,8 @@
   - method: HEAD
     path: /invoker/JMXInvokerServlet
   - method: HEAD
+    path: /invoker/EJBInvokerServlet
+  - method: HEAD
     path: /invoker/
   - method: HEAD
     path: /jmx-console/
