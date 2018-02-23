@@ -38,7 +38,7 @@ class MetasploitModule < Msf::Auxiliary
                                         'ssh', 'sshkey', 'svn', 'teamspeak', 'telnet', 'telnets', 'vmauthd', 'vnc',
                                         'xmpp'] ]),
             OptPath.new('USERPASS_FILE',  [ false, 'File containing users and passwords separated by colon, one pair per line' ]),
-            OptInt.new('TASKS', [ true, 'The number of parallel connections per host', 16 ]),
+            OptInt.new('TASKS', [ true, 'The number of parallel connections per host', 4 ]),
             Opt::RPORT,
             OptBool.new('REV_USER_AS_PASS', [ false, 'Try the username reversed as the password for all users', false ]),
             OptBool.new('LOOP_USERS', [ false, 'Loop around users instead of passwords', false ])

@@ -4,20 +4,18 @@
 ##
 
 require 'msf/core'
-require 'rex/proto/http'
 require 'yaml'
+require_relative '../../../../lib/typhoeus'
 
 class MetasploitModule < Msf::Auxiliary
-  include Msf::Exploit::Remote::HttpClient
   include Msf::Auxiliary::WmapScanServer
-  include Msf::Auxiliary::Scanner
   include Msf::Auxiliary::Report
 
   def initialize
     super(
       'Name'   		  => 'HTTP Vuln Scanner',
       'Description'	=> %q{
-        This module is a port of the Nmap 'http-enum' script. It enumerates directories used by popular web applications and servers.
+        This module is a port of the Nmap 'http-enum' script. It enumerates files and directories used by popular web applications and servers.
       },
       'Author' 		  => 'Sion Dafydd <sion.dafydd[at]gmail.com>',
       'License'		  => BSD_LICENSE
@@ -25,24 +23,34 @@ class MetasploitModule < Msf::Auxiliary
 
     register_options(
       [
-        OptString.new('PATH', [ true, 'Test base path', '/']),
-        OptBool.new('DISPLAYALL', [ true, 'Display all status codes that may indicate a valid page, not just 200 and 401', false ]),
-        OptPath.new('FINGERPRINTS',[ true, 'Path to yaml file containing fingerprints', File.join(Msf::Config.config_directory, 'data', 'http_fingerprints.yml') ])
+          Opt::RHOST,
+          Opt::RPORT(80),
+          OptString.new('VHOST', [ false, "HTTP server virtual host" ]),
+          OptBool.new('SSL', [ false, 'Negotiate SSL/TLS for outgoing connections', false]),
+          OptString.new('PATH', [ true, 'Test base path', '/']),
+          OptBool.new('DISPLAYALL', [ true, 'Display all status codes that may indicate a valid page, not just 200 and 401', false ]),
+          OptPath.new('FINGERPRINTS',[ true, 'Path to yaml file containing fingerprints', File.join(Msf::Config.config_directory, 'data', 'http_fingerprints.yml') ])
       ]
     )
 
     register_advanced_options(
       [
-        OptInt.new('ErrorCode', [ true,  'The expected HTTP status code for non existant files', 404 ]),
-        OptPath.new('HTTP404Sigs', [ false, 'Path of 404 signatures to use', File.join(Msf::Config.data_directory, 'wmap', 'wmap_404s.txt') ]),
-        OptBool.new('ForceCode', [ false, 'Force detection using HTTP status code', false ]),
-        OptInt.new('TestThreads', [ true, 'The number of test threads', 25 ])
+          OptString.new('UserAgent', [false, 'The User-Agent header to use for all requests', Rex::Proto::Http::Client::DefaultUserAgent ]),
+          OptInt.new('ErrorCode', [ false,  'The expected HTTP status code for non existant resources' ]),
+          OptPath.new('HTTP404Sigs', [ false, 'Path of 404 signatures to use', File.join(Msf::Config.data_directory, 'wmap', 'wmap_404s.txt') ]),
+          OptInt.new('MaxThreads', [ true, 'The maximum number of concurrent requests', 10 ])
       ]
     )
+
+    deregister_options('RHOSTS')
   end
 
-  def run_host(ip)
-    usecode = datastore['ForceCode']
+  def run
+    #
+    # Assign variables
+    #
+    ecode = datastore['ErrorCode'].to_i
+    emesg = nil
 
     # Remove trailing slash if it exists
     base_path = normalize_uri(datastore['PATH'])
@@ -52,41 +60,52 @@ class MetasploitModule < Msf::Auxiliary
 
     displayall = datastore['DISPLAYALL']
 
-    num_threads = datastore['TestThreads'].to_i
+    num_threads = datastore['MaxThreads'].to_i
     num_threads = 1 if num_threads == 0
 
-    queue = []
-
+    queue = Queue.new
     fingerprints = YAML.load_file(datastore['FINGERPRINTS'])
     fingerprints.each do |fingerprint|
-      queue << fingerprint
+      queue.push fingerprint
     end
 
     #
     # Detect error code
     #
-    ecode = datastore['ErrorCode'].to_i
-    begin
-      conn = true
-      tries ||= 3
+    if ecode.zero?
+      random_file = Rex::Text.rand_text_alpha(8).chomp
 
-      random_file = Rex::Text.rand_text_alpha(5).chomp
+      url = "#{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}/#{random_file}"
+      resolve = Ethon::Curl.slist_append(nil, "#{vhost}:#{rport}:#{rhost}")
 
-      response = send_request_cgi({
-                                 'uri'  	=> base_path+random_file,
-                                 'method' => 'GET',
-                                 'ctype'	=> 'text/html'
-                             }, 20)
+      Typhoeus::Config.user_agent = datastore['UserAgent']
 
-      return unless response
+      request = Typhoeus::Request.new(
+          url,
+          resolve: resolve,
+          method: 'GET',
+          followlocation: false,
+          connecttimeout: 20,
+          ssl_verifyhost: 0,
+          ssl_verifypeer: false
+      )
+      response = request.run
 
-      tcode = response.code.to_i
+      if response.timed_out?
+        print_error('Unable to connect, connection timed out')
+        return
+      end
+
+      if response.code.zero?
+        print_error('Unable to connect, could not get a http response')
+        return
+      end
 
       # Look for a string we can signature on as well
-      if(tcode >= 200 and tcode <= 299)
+      if response.code >= 200 and response.code <= 299
         emesg = nil
         File.open(datastore['HTTP404Sigs'], 'rb').each do |str|
-          if(response.body.index(str))
+          if response.body.index(str)
             emesg = str
             break
           end
@@ -99,157 +118,152 @@ class MetasploitModule < Msf::Auxiliary
           print_status("Using custom 404 string of '#{emesg}'")
         end
       else
-        ecode = tcode
+        ecode = response.code.to_i
         print_status("Using code '#{ecode}' as not found.")
       end
-
-    rescue ::Rex::ConnectionTimeout
-      retry unless (tries -= 1).zero?
-      conn = false
-      print_error('Unable to connect, connection timed out') if tries.zero?
-    rescue ::Rex::ConnectionRefused
-      conn = false
-      print_error('Unable to connect, connection refused by server')
-    rescue ::Rex::HostUnreachable
-      conn = false
-      print_error('Unable to connect, host unreachable')
     end
-
-    return unless conn
 
     #
     # Start testing
     #
-    while(not queue.empty?)
-      test_threads = []
-      1.upto(num_threads) do
-        test_threads << framework.threads.spawn("Module(#{self.refname})-#{ip}", false, queue.shift) do |fingerprint|
-          Thread.current.kill unless fingerprint
+    workers = 1.upto(num_threads).map do
+      Thread.new do
+        begin
+          while fingerprint = queue.pop(true)
 
-          category = fingerprint['category']
-          probes = fingerprint['probes']
-          matches = fingerprint['matches']
+            category = fingerprint['category']
+            probes = fingerprint['probes']
+            matches = fingerprint['matches']
 
-          # loop through probes
-          probes.each do |probe|
-            output = nil
-
-            if probe.key?('method')
-              method = probe['method']
-            else
-              method = 'GET'
-            end
-
-            begin
-              conn = true
-              tries ||= 3
-
-              # send probe
-              response = send_request_cgi({
-                                         'uri'  	=> base_path + probe['path'],
-                                         'method' => method,
-                                         'ctype'	=> 'text/plain'
-                                     }, 20)
-
-            rescue ::Rex::ConnectionTimeout
-              retry unless (tries -= 1).zero?
-              conn = false
-              print_error('Unable to connect, connection timed out') if tries.zero?
-            rescue ::Rex::ConnectionRefused
-              conn = false
-              print_error('Unable to connect, connection refused by server')
-            rescue ::Rex::HostUnreachable
-              conn = false
-              print_error('Unable to connect, host unreachable')
-            end
-
-            # Check if connection was successful and response was received, move on to next probe if not
-            next unless conn and response
-
-            # check if 404 or error code
-            if((response.code.to_i == ecode) or (emesg and response.body.index(emesg)))
-              vprint_status("#{wmap_base_url}#{base_path}#{probe['path']} [#{response.code.to_i}]")
-              # move on to next probe
-              next
-            else
-              if response.code.to_i == 400
-                print_error("#{wmap_base_url}#{base_path}#{probe['path']} [#{response.code.to_i}]")
-                # move on to next probe
-                next
-              elsif not displayall
-                unless response.code.to_i == 200 or response.code.to_i == 401
-                  vprint_status("#{wmap_base_url}#{base_path}#{probe['path']} [#{response.code.to_i}]")
-                  # move on to next probe
-                  next
-                end
-              end
-            end
-
-            # loop through matches
-            matches.each do |match|
+            # loop through probes
+            probes.each do |probe|
               output = nil
 
-              # Change blank 'match' strings to '.*' so they match everything
-              if match['match'].nil? or match['match'].empty?
-                match['match'] = '(.*)'
+              if probe.key?('method')
+                method = probe['method']
+              else
+                method = 'GET'
               end
 
-              success, captures = response_contains(response, match['match'])
-              if success
-                output = match['output']
-                captures.length.times do |count|
-                  output.gsub!('\\' + (count.to_i + 1).to_s, captures[count])
+              url = "#{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}#{probe['path']}"
+              resolve = Ethon::Curl.slist_append(nil, "#{vhost}:#{rport}:#{rhost}")
+
+              Typhoeus::Config.user_agent = datastore['UserAgent']
+
+              request = Typhoeus::Request.new(
+                url,
+                resolve: resolve,
+                method: method,
+                followlocation: false,
+                connecttimeout: 20,
+                ssl_verifyhost: 0,
+                ssl_verifypeer: false
+              )
+              response = request.run
+
+              if response.timed_out?
+                print_error("#{wmap_base_url}#{base_path}#{probe['path']}, connection timed out")
+                # move on to next probe
+                next
+              end
+
+              if response.code.zero?
+                print_error("#{wmap_base_url}#{base_path}#{probe['path']}, could not get a http response")
+                # move on to next probe
+                next
+              end
+
+              # check if 404 or error code
+              if (response.code == ecode) || (emesg && response.body.index(emesg))
+                vprint_status("#{wmap_base_url}#{base_path}#{probe['path']} [#{response.code}]")
+                # move on to next probe
+                next
+              else
+                unless displayall
+                  unless response.code == 200 || response.code == 401
+                    vprint_status("#{wmap_base_url}#{base_path}#{probe['path']} [#{response.code}]")
+                    # move on to next probe
+                    next
+                  end
                 end
               end
 
-              if match.key?('dontmatch')
-                success, captures = response_contains(response, match['dontmatch'])
+              # loop through matches
+              matches.each do |match|
+                output = nil
+
+                # Change blank 'match' strings to '.*' so they match everything
+                if match['match'].nil? or match['match'].empty?
+                  match['match'] = '(.*)'
+                end
+
+                success, captures = response_contains(response, match['match'])
                 if success
-                  output = nil
+                  output = match['output']
+                  captures.length.times do |count|
+                    output.gsub!('\\' + (count.to_i + 1).to_s, captures[count])
+                  end
                 end
+
+                if match.key?('dontmatch')
+                  success, captures = response_contains(response, match['dontmatch'])
+                  output = nil if success
+                end
+
+                break if output
               end
 
-              break if output
-            end
+              if output.nil?
+                vprint_status("#{wmap_base_url}#{base_path}#{probe['path']} [#{response.code}]")
+                next
+              else
+                report_web_vuln(
+                    :host	       => rhost,
+                    :port	       => rport,
+                    :vhost       => vhost,
+                    :ssl         => ssl,
+                    :path	       => "#{base_path}#{probe['path']}",
+                    :method      => method,
+                    :pname       => '',
+                    :proof       => "Res code: [#{response.code}], Output: #{output}",
+                    :risk        => 0,
+                    :confidence  => 100,
+                    :category    => 'resource',
+                    :description => 'Interesting resource enumerated.',
+                    :name        => 'resource'
+                )
 
-            if not output.nil?
-              print_good("#{wmap_base_url}#{base_path}#{probe['path']} [#{response.code.to_i}] : #{output}")
+                print_good("#{wmap_base_url}#{base_path}#{probe['path']} [#{response.code}] (#{wmap_target_host})")
 
-              report_note(
-                  :host    => ip,
-                  :port    => rport,
-                  :proto   => 'tcp',
-                  :sname   => (ssl ? 'https' : 'http'),
-                  :type    => 'web_enum',
-                  :data    => "#{wmap_base_url}#{base_path}#{probe['path']} [#{response.code}] : #{output}"
-              )
+                if response.code.to_i == 401
+                  print_status("#{wmap_base_url}#{base_path}#{testdir} requires authentication: #{response.headers['WWW-Authenticate']} (#{wmap_target_host})")
 
-              report_web_vuln(
-                  :host	=> ip,
-                  :port	=> rport,
-                  :vhost  => vhost,
-                  :ssl    => ssl,
-                  :path	=> "#{base_path}#{probe['path']}",
-                  :method => method,
-                  :pname  => '',
-                  :proof  => "[#{response.code}] : #{output}",
-                  :risk   => 0,
-                  :confidence   => 100,
-                  :category     => 'web_enum',
-                  :description  => 'Interesting resource enumerated',
-                  :name   => 'web_enum'
-              )
+                  report_note(
+                      :host	  => rhost,
+                      :port	  => rport,
+                      :proto  => 'tcp',
+                      :sname	=> (ssl ? 'https' : 'http'),
+                      :type	  => 'WWW_AUTHENTICATE',
+                      :data	  => "#{wmap_base_url}#{base_path}#{testdir} Auth: #{response.headers['WWW-Authenticate']}",
+                      :update => :unique_data
+                  )
+                end
 
-              break
-            else
-              vprint_status("#{wmap_base_url}#{base_path}#{probe['path']} [#{response.code.to_i}]")
+                # Report a valid website and webpage to the database
+                report(response)
+
+                break
+              end
             end
           end
+        rescue ThreadError
+        rescue => e
+          puts e.backtrace
+          raise
         end
       end
-
-      test_threads.map{|t| t.join }
     end
+    workers.map(&:join)
   end
 
   def response_contains(response, pattern, case_sensitive=false)
@@ -266,24 +280,92 @@ class MetasploitModule < Msf::Auxiliary
       regex = Regexp.new(pattern, Regexp::MULTILINE || Regexp::IGNORECASE)
     end
 
-    # Check the status line (eg, 'HTTP/1.1 200 OK')
-    if response.cmd_string.match(regex)
-      captures = response.body.match(regex).captures
-      return true, captures
-    end
-
     # Check the headers
-    if response.headers.to_s.match(regex)
-      captures = response.body.match(regex).captures
+    if response.response_headers.match(regex)
+      captures = response.response_headers.match(regex).captures
       return true, captures
     end
 
     # Check the body
-    if response.body.match(regex)
-      captures = response.body.match(regex).captures
+    if response.response_body.match(regex)
+      captures = response.response_body.match(regex).captures
       return true, captures
     end
 
     return false, captures
+  end
+
+  def vhost
+    datastore['VHOST'] || datastore['RHOST']
+  end
+
+  def rhost
+    datastore['RHOST']
+  end
+
+  def rport
+    datastore['RPORT']
+  end
+
+  def ssl
+    datastore['SSL']
+  end
+
+  #
+  # Returns a modified version of the URI that:
+  # 1. Always has a starting slash
+  # 2. Removes all the double slashes
+  #
+  def normalize_uri(*strs)
+    new_str = strs * "/"
+
+    new_str = new_str.gsub!("//", "/") while new_str.index("//")
+
+    # Makes sure there's a starting slash
+    unless new_str[0,1] == '/'
+      new_str = '/' + new_str
+    end
+
+    new_str
+  end
+
+  def report(response)
+    # Report a website to the database
+    site = report_web_site(:wait => true, :host => rhost, :port => rport, :vhost => vhost, :ssl => datastore['SSL'])
+
+    uri = URI.parse(response.url)
+    info = {
+        :web_site => site,
+        :path     => uri.path,
+        :query    => uri.query,
+        :code     => response.code,
+        :body     => response.body,
+        :headers  => response.headers
+    }
+
+    if response.headers['content-type']
+      info[:ctype] = page.headers['content-type']
+    end
+
+    # TODO
+    #if !page.cookies.empty?
+    #  info[:cookie] = page.cookies
+    #end
+
+    if response.headers['authorization']
+      info[:auth] = response.headers['authorization']
+    end
+
+    if response.headers['location']
+      info[:location] = response.headers['location']
+    end
+
+    if response.headers['last-modified']
+      info[:mtime] = response.headers['last-modified']
+    end
+
+    # Report the web page to the database
+    report_web_page(info)
+
   end
 end

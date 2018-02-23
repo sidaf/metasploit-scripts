@@ -1,12 +1,15 @@
-#set consolelogging true
-#set loglevel 5
-#set sessionlogging true
-#set timestampoutput true
-#set PROMPT %T S:%S J:%J msf
+#set ConsoleLogging true
+#set LogLevel 3
+#set SessionLogging true
+set TimestampOutput true
+#set Prompt [%T] %undmsf%clr
+#set Prompt %T %grn%J %blu%S %yel%W%clr msf %clr
+#set PromptChar %clr>
+#set PromptTimeFormat %Y-%m-%d %H:%M:%S %z
 
 #load alias
 #alias history tail -10 ~/.msf4/history
 
 load project
+load wmap
 #load discover
-#load wmap

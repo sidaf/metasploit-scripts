@@ -1,0 +1,97 @@
+<ruby>
+  ############
+  # Requires #
+  ############
+
+  require 'csv'
+
+  ####################
+  # Helper functions #
+  ####################
+
+  def run_auxiliary_module(mod, opts, as_job: false, quiet: false, dry_run: false)
+    m = framework.auxiliary.create(mod)
+    unless m.nil?
+      opts.each do |o, v|
+        m.datastore[o] = v
+      end
+      m.options.validate(m.datastore)
+      if not dry_run
+        m.run_simple(
+          'LocalInput' => self.input,
+          'LocalOutput' => self.output,
+          'RunAsJob' => as_job,
+          'Quiet' => quiet
+        )
+      else
+        print_status("Would run module 'auxiliary/#{mod}' against:")
+        print_line("RHOSTS: #{opts['RHOSTS']}")
+        print_line("RPORT: #{opts['RPORT']}")
+        print_line("SSL: #{opts['SSL']}")
+        print_line("FQDN_LIST: #{opts['FQDN_LIST']}")
+        print_line
+      end
+    else
+      print_error("module auxiliary/#{mod} does not exist")
+    end
+  end
+
+  ########
+  # Main #
+  ########
+
+  print_line
+  print_line("-----===[ auxiliary/scanner/http/vhost_scanner2 ]===-----")
+  print_line
+
+  # Check if we have a database connection
+  if framework.db.nil? or not framework.db.active
+    print_error('Database not connected (try db_connect)')
+    return
+  end
+
+  # Import IP address and virtual host pairs
+  vhosts = Hash.new
+  CSV.foreach(ENV['HOME'] + '/Work/reconnaissance/hosts.csv', { :skip_blanks => true }) do |row|
+    fqdn = row[0]
+    ip = row[1]
+    unless fqdn.empty?
+      unless vhosts.has_key? ip
+        vhosts[ip] = Array.new
+      end
+      vhosts[ip] << fqdn
+    end
+  end
+
+  # Define http[s] services
+  services     = ['http', 'alt-http', 'http-proxy']
+  ssl_services = ['https', 'ssl/https', 'ssl/http', 'alt-https', 'ssl/http-proxy', 'ssl/upnp', 'https-proxy', 'ssl/https-alt', 'ssl/blackice-icecap']
+
+  # Run vhost_scanner2 module against each host that may have a corresponding virtual host
+  framework.db.services.each do |service|
+    next unless service.host and service.state.eql? 'open' and service.proto.eql? 'tcp'
+    next if not services.include?(service.name) and not ssl_services.include?(service.name)
+
+    if vhosts.has_key? service.host.address
+      # Create temporary file to store the virtual host entries
+      tmp = Tempfile.new(["vhost_scanner2",'.txt'])
+      tmp.write(vhosts[service.host.address].join("\n"))
+      tmp.close
+
+      # Setup the module
+      mod = "scanner/http/vhost_scanner2"
+      progress = false
+      verbose = false
+      rhosts = service.host.address
+      rport = service.port
+      ssl = ssl_services.include?(service.name) ? true : false
+
+      # Run module
+      opts = { 'ShowProgress' => progress, 'VERBOSE' => verbose, 'RHOSTS' => rhosts, 'RPORT' => rport, 'SSL' => ssl, 'FQDN_LIST' => tmp.path}
+      run_auxiliary_module(mod, opts)
+      print_line if verbose
+
+      File.delete(tmp.path)
+    end
+  end
+</ruby>

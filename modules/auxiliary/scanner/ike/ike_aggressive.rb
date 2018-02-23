@@ -43,7 +43,7 @@ class MetasploitModule < Msf::Auxiliary
     ]
     aggressive = true
     diffie_hellman = 2
-    identifier = 'blah'
+    identifier = 'GroupVPN'
 
     debug = true
 
@@ -82,7 +82,7 @@ class MetasploitModule < Msf::Auxiliary
 
     # Transform Payloads
     transforms_payload = [''].pack('H*')
-    transforms.each_with_index do | transform, index |
+    transforms.each_with_index do |transform, index|
       number = index + 1
       transforms_payload += generate_transform(transform[0], transform[1], transform[2], transform[3],
                                                transform[4], transform[5], number, (number == transforms.size))
@@ -122,11 +122,8 @@ class MetasploitModule < Msf::Auxiliary
     header_payload += ['00000000'].pack('H*')                           # Message ID
     header_payload += [sprintf('%08x', 28 + proposal_payload.size + transforms_payload.size + aggressive_payload.size)].pack('H*') # Payload Length (360)
 
-    print_line if debug
-    print_line(Rex::Text.to_hex_dump(payload)) if debug
-
     # Assemble packet components in correct order and return
-    return header_payload + sa_payload + proposal_payload + transforms_payload + aggressive_payload
+    header_payload + sa_payload + proposal_payload + transforms_payload + aggressive_payload
   end
 
   def generate_transform(encryption, hash, authentication, group, life_type, life_duration, number, last)

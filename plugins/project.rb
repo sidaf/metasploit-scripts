@@ -35,73 +35,79 @@ module Msf
       # Define Commands
       def commands
         {
-            'project' => 'Command for managing projects.',
+            'project' => 'Manage projects.',
         }
+      end
+
+      def cmd_project_help
+        print_line "Usage:"
+        print_line "    project             List projects"
+        print_line "    project -v          List projects verbosely"
+        print_line "    project [name]      Switch project"
+        print_line "    project -a [name]   Add project"
+        print_line "    project -d [name]   Delete project"
+        print_line "    project -D          Delete all projects"
+        print_line "    project -e          Export project history and database and archive it"
+        print_line "    project -r          Generate time stamped resource files containing session and console command history"
+        print_line "    project -s          Generate time stamped session logs"
+        print_line "    project -rs         Generate both time stamped resource files and session logs"
+        #print_line "    project -r <old> <new>   Rename workspace"
+        print_line "    project -h          Show this help information"
+        print_line
       end
 
       def cmd_project(*args)
         # variable
-        project_name = ''
+        project_name = nil
         create = false
         delete = false
-        history = false
-        switch = false
-        archive = false
+        delete_all = false
+        verbose = false
         arch_path = ::File.join(Msf::Config.log_directory, 'archives')
-        # Define options
-        opts = Rex::Parser::Arguments.new(
-            '-c' => [false, 'Create a new Metasploit project and sets logging for it'],
-            '-d' => [false, 'Delete a project created by the plugin'],
-            '-s' => [false, 'Switch to a project created by the plugin'],
-            '-a' => [false, 'Export all history and DB and archive it in to a zip file for current project'],
-            '-p' => [true, 'Path to save archive, if none provide default ~/.msf4/archives will be used'],
-            '-r' => [false, 'Create time stamped RC files of Meterpreter Sessions and console history for current project'],
-            '-ph' => [false, 'Generate resource files for sessions and console. Generate time stamped session logs for current project'],
-            '-l' => [false, 'List projects created by plugin'],
-            '-h' => [false, 'Command Help']
-        )
-        opts.parse(args) do |opt, idx, val|
-          case opt
-            when '-p'
-              if ::File.directory?(val)
-                arch_path = val
-              else
-                print_error('Path provided for archive does not exists!')
-                return
-              end
-            when '-d'
-              delete = true
-            when '-s'
-              switch = true
-            when '-a'
-              archive = true
-            when '-c'
+
+        while (arg = args.shift)
+          case arg
+            when '-h','--help'
+              cmd_project_help
+              return
+            when '-a','--add'
               create = true
-            when '-r'
+            when '-d','--del'
+              delete = true
+            when '-D','--delete-all'
+              project_list.each do |project|
+                project_delete(project)
+              end
+              return
+            when '-v','--verbose'
+              list_verbose
+              return
+            when '-e', '--export'
+              project_archive(arch_path)
+              return
+            when '-r', '--resource-files'
               make_console_rc
               make_sessions_rc
-            when '-h'
-              print_line(opts.usage)
               return
-            when '-l'
-              list
+            when '-s', '--session-logs'
+              make_sessions_logs
               return
-            when '-ph'
-              history = true
+            when '-rs'
+              make_console_rc
+              make_sessions_rc
+              make_sessions_logs
+              return
             else
-              project_name = val.gsub(' ', '_').chomp
+              project_name = arg.gsub(' ', '_').chomp
           end
         end
+
         if project_name and create
           project_create(project_name)
         elsif project_name and delete
           project_delete(project_name)
-        elsif project_name and switch
+        elsif project_name
           project_switch(project_name)
-        elsif archive
-          project_archive(arch_path)
-        elsif history
-          project_history
         else
           list
         end
@@ -154,9 +160,18 @@ module Msf
 
           # Start spooling for new workspace
           driver.init_ui(driver.input, Rex::Ui::Text::Output::Tee.new(spool_file))
+
+          # Restore the prompt so we don't get "msf >  >".
+          prompt = framework.datastore['Prompt'] || Msf::Ui::Console::Driver::DefaultPrompt
+          prompt_char = framework.datastore['PromptChar'] || Msf::Ui::Console::Driver::DefaultPromptChar
+          if active_module # if there is an active module, give them the fanciness they have come to expect
+            driver.update_prompt("#{prompt} #{mod.type}(%bld%red#{mod.shortname}%clr) ", prompt_char, true)
+          else
+            driver.update_prompt("#{prompt} ", prompt_char, true)
+          end
+
           print_line("Spooling to file #{spool_file}...")
           print_line("Successfully migrated to #{project_name}")
-
         else
           print_error('Project was not found on list of projects!')
         end
@@ -168,11 +183,43 @@ module Msf
         current_workspace = framework.db.workspace.name
         project_list.each do |p|
           if current_workspace == p
-            print_line("\t* #{p}")
+            print_line("%red* #{p}%clr")
           else
-            print_line("\t#{p}")
+            print_line("  #{p}")
           end
         end
+        return true
+      end
+
+      # Verbose list of current projects created by the plugin
+      def list_verbose
+        current_workspace = framework.db.workspace.name
+        col_names = %w{current name hosts services vulns creds loots notes}
+
+        tbl = Rex::Text::Table.new(
+            'Header'     => 'Projects',
+            'Columns'    => col_names,
+            'SortIndex'  => -1
+        )
+
+        # List workspaces
+        framework.db.workspaces.each do |ws|
+          if project_list.include?(ws.name)
+            tbl << [
+                ws == current_workspace ? '   *   ' : '',
+                ws.name,
+                ws.hosts.count,
+                ws.services.count,
+                ws.vulns.count,
+                ws.core_credentials.count,
+                ws.loots.count,
+                ws.notes.count
+            ]
+          end
+        end
+
+        print_line
+        print_line(tbl.to_s)
         return true
       end
 
@@ -181,8 +228,8 @@ module Msf
         # Set variables for options
         project_name = framework.db.workspace.name
         project_path = ::File.join(Msf::Config.log_directory, 'projects', project_name)
-        archive_name = "#{project_name}_#{::Time.now.strftime('%Y%m%d.%M%S')}.zip"
-        db_export_name = "#{project_name}_#{::Time.now.strftime('%Y%m%d.%M%S')}.xml"
+        archive_name = "#{project_name}_#{::Time.now.strftime('%Y%m%d.%H%M%S')}.zip"
+        db_export_name = "#{project_name}_#{::Time.now.strftime('%Y%m%d.%H%M%S')}.xml"
         db_out = ::File.join(project_path, db_export_name)
         format = 'xml'
         print_line("Exporting DB Workspace #{project_name}")
@@ -213,16 +260,16 @@ module Msf
         print_line('Spooling re-enabled')
         # Start spooling for new workspace
         driver.init_ui(driver.input, Rex::Ui::Text::Output::Tee.new(spool_file))
-        print_line("Spooling to file #{spool_file}...")
-        return true
-      end
 
-      # Export Command History for Sessions and Console
-      #-------------------------------------------------------------------------------------------
-      def project_history
-        make_console_rc
-        make_sessions_rc
-        make_sessions_logs
+        # Restore the prompt so we don't get "msf >  >".
+        prompt = framework.datastore['Prompt'] || Msf::Ui::Console::Driver::DefaultPrompt
+        prompt_char = framework.datastore['PromptChar'] || Msf::Ui::Console::Driver::DefaultPromptChar
+        if active_module # if there is an active module, give them the fanciness they have come to expect
+          driver.update_prompt("#{prompt} #{mod.type}(%bld%red#{mod.shortname}%clr) ", prompt_char, true)
+        else
+          driver.update_prompt("#{prompt} ", prompt_char, true)
+        end
+        print_line("Spooling to file #{spool_file}...")
         return true
       end
 
@@ -239,6 +286,16 @@ module Msf
           framework.db.workspace = workspace
           print_line("Added workspace: #{workspace.name}")
           driver.init_ui(driver.input, Rex::Ui::Text::Output::Tee.new(spool_file))
+
+          # Restore the prompt so we don't get "msf >  >".
+          prompt = framework.datastore['Prompt'] || Msf::Ui::Console::Driver::DefaultPrompt
+          prompt_char = framework.datastore['PromptChar'] || Msf::Ui::Console::Driver::DefaultPromptChar
+          if active_module # if there is an active module, give them the fanciness they have come to expect
+            driver.update_prompt("#{prompt} #{mod.type}(%bld%red#{mod.shortname}%clr) ", prompt_char, true)
+          else
+            driver.update_prompt("#{prompt} ", prompt_char, true)
+          end
+
           print_line("Spooling to file #{spool_file}...")
         else
           print_error('A database most be configured and connected to create a project')
@@ -250,7 +307,7 @@ module Msf
       #-------------------------------------------------------------------------------------------
       def make_console_rc
         # Set RC file path and file name
-        rc_file = "#{framework.db.workspace.name}_#{::Time.now.strftime('%Y%m%d.%M%S')}.rc"
+        rc_file = "#{framework.db.workspace.name}_#{::Time.now.strftime('%Y%m%d.%H%M%S')}.rc"
         consonle_rc_path = ::File.join(Msf::Config.log_directory, 'projects', framework.db.workspace.name)
         rc_full_path = ::File.join(consonle_rc_path, rc_file)
 
@@ -300,7 +357,7 @@ module Msf
           sessions_info.each do |i|
             if su == i[:uuid]
               print_line("Creating RC file for Session #{i[:id]}")
-              rc_file_name = "#{framework.db.workspace.name}_session_#{i[:id]}_#{::Time.now.strftime('%Y%m%d.%M%S')}.rc"
+              rc_file_name = "#{framework.db.workspace.name}_session_#{i[:id]}_#{::Time.now.strftime('%Y%m%d.%H%M%S')}.rc"
               i.each do |k, v|
                 info << "#{k.to_s}: #{v.to_s} "
               end
@@ -359,7 +416,7 @@ module Msf
           sessions_info.each do |i|
             if su == i[:uuid]
               print_line("Exporting Session #{i[:id]} history")
-              hist_file_name = "#{framework.db.workspace.name}_session_#{i[:id]}_#{::Time.now.strftime('%Y%m%d.%M%S')}.log"
+              hist_file_name = "#{framework.db.workspace.name}_session_#{i[:id]}_#{::Time.now.strftime('%Y%m%d.%H%M%S')}.log"
               i.each do |k, v|
                 info << "#{k.to_s}: #{v.to_s} "
               end
@@ -472,7 +529,7 @@ module Msf
           ::FileUtils.mkdir_p(archive_path)
         end
 
-        print_status 'Project plugin version 1.4.1 loaded'
+        print_status 'Project plugin version 1.5.0 loaded'
       else
         raise 'Database not connected (try db_connect)'
       end

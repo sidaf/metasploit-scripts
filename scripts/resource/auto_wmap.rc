@@ -1,6 +1,6 @@
 <ruby>
 
-	verbose = 1
+	verbose = 0
 	modules = "dir_scanner"
 
 	#default to 50 Threads
@@ -8,10 +8,7 @@
 		run_single("setg THREADS 50")
 	end
 
-	if (framework.plugins.to_s =~ /[Ww]map/)
-		print_status("Wmap plugin already loaded ...")
-	else
-		print_status("loading the wmap plugin ...")
+	unless (framework.plugins.to_s =~ /[Ww]map/)
 		run_single("load wmap")
 	end
 
@@ -23,9 +20,6 @@
 		return
 	end
 
-	print_line("")
-	run_single("wmap_sites -l")
-
 	framework.db.hosts.each do |host|
 		host.services.each do |service|
 			next if not service.host
@@ -34,13 +28,13 @@
 
 			if(verbose == 1)
 				print_line("")
-				print_line("====================================")
-				print_line("IP: #{host.address}")
-				print_line("OS: #{host.os_name}")
-				print_line("Service Name: #{service.name}")
-				print_line("Service Port: #{service.port.to_i}")
-				print_line("Service Protocol: #{service.proto}")
-				print_line("====================================")
+				print_line("+-=====================-+")
+				print_line("  IP: #{host.address}")
+				print_line("  OS: #{host.os_name}")
+				print_line("  Service Name: #{service.name}")
+				print_line("  Service Port: #{service.port.to_i}")
+				print_line("  Service Protocol: #{service.proto}")
+				print_line("+-=====================-+")
 				print_line("")
 			end
 
@@ -52,27 +46,28 @@
 			# Cycle through each web site defined in the database
 
 			service.web_sites.each do |site|
-				print_status("Site structure:")
-				run_single("wmap_sites -s #{site.vhost},#{prefix}://#{host.address}:#{service.port}")
+				#print_status("Site structure:")
+				#run_single("wmap_sites -s #{site.vhost},#{prefix}://#{host.address}:#{service.port}")
+				print_line("wmap_sites -s #{site.vhost},#{prefix}://#{host.address}:#{service.port}")
 			end
 
-			service.web_sites.each do |site|
-				run_single("wmap_targets -t #{site.vhost},#{prefix}://#{host.address}:#{service.port}")
-			end
+			#service.web_sites.each do |site|
+				#run_single("wmap_targets -t #{site.vhost},#{prefix}://#{host.address}:#{service.port}")
+			#end
 
 			# Print defined targets
-			run_single("wmap_targets -l")
+			#run_single("wmap_targets -l")
 
 			if(modules != nil)
 				#run_single("wmap_run -m #{modules}")
 			else
 				#run_single("wmap_run -e")
 			end
-			run_single("wmap_targets -c")
+			#run_single("wmap_targets -c")
 
-			print_line("")
-			print_status("Finished analysing the web server on IP: #{host.address.to_s}, Port: #{service.port.to_s}")
-			print_line("")
+			#print_line("")
+			#print_status("Finished analysing the web server on IP: #{host.address.to_s}, Port: #{service.port.to_s}")
+			#print_line("")
 		end
 	end
 </ruby>

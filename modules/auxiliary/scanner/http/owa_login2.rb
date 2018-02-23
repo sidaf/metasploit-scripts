@@ -81,7 +81,7 @@ class MetasploitModule < Msf::Auxiliary
             OptInt.new('RPORT', [ true, "The target port", 443]),
             OptAddress.new('RHOST', [ true, "The target address" ]),
             OptBool.new('ENUM_DOMAIN', [ true, "Automatically enumerate AD domain using NTLM authentication", true]),
-            OptBool.new('AUTH_TIME', [ false, "Check HTTP authentication response time", true]),
+            OptBool.new('AUTH_TIME', [ true, "Check HTTP authentication response time", true]),
             OptInt.new('THRESHOLD', [ true, "The response time threshold before which a username is marked valid", 2]),
         ])
 
@@ -240,7 +240,7 @@ class MetasploitModule < Msf::Auxiliary
         headers['Cookie'] = 'PBack=0;' << res.get_cookies
       else
         # Login didn't work. no point in going on, however, check if valid domain account by response time.
-        if elapsed_time <= datastore['THRESHOLD']
+        if datastore['AUTH_TIME'] and elapsed_time <= datastore['THRESHOLD']
           report_cred(
               ip: datastore['RHOST'],
               port: datastore['RPORT'],
@@ -286,7 +286,7 @@ class MetasploitModule < Msf::Auxiliary
     end
 
     if res.redirect?
-      if elapsed_time <= datastore['THRESHOLD']
+      if datastore['AUTH_TIME'] and elapsed_time <= datastore['THRESHOLD']
         report_cred(
             ip: datastore['RHOST'],
             port: datastore['RPORT'],
@@ -312,7 +312,7 @@ class MetasploitModule < Msf::Auxiliary
       )
       return :next_user
     else
-      if elapsed_time <= datastore['THRESHOLD']
+      if datastore['AUTH_TIME'] and elapsed_time <= datastore['THRESHOLD']
         report_cred(
             ip: datastore['RHOST'],
             port: datastore['RPORT'],

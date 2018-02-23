@@ -10,10 +10,10 @@
   ftp_services = ['ftp']
   ftps_services = ['ssl/ftp', 'ftps']
 
-  ftp_version = false
-  anonymous =  false
+  ftp_version = true
+  anonymous =  true
   ftp_login_userpass = false
-  ftp_login_other = true
+  ftp_login_other = false
 
   if ftp_version
     print_line
@@ -92,8 +92,7 @@
         run_single('set ShowProgress true')
         run_single('set THREADS 20')
         run_single('set SINGLE_SESSION true')
-        run_single('set USERPASS_FILE /home/sion/Tools/Scripts/wordlists/userpass/ftp-default.txt')
-        run_single('set REMOVE_USERPASS_FILE true')
+        run_single('set USERPASS_FILE /home/sion/Scripts/wordlists/userpass/ftp-default_msf.txt')
         run_single('run')
         run_single('unset USERPASS_FILE')
         run_single('back')
@@ -124,8 +123,8 @@
         run_single('set ShowProgress true')
         run_single('set THREADS 20')
         run_single('set SINGLE_SESSION true')
-        run_single('set USER_FILE /home/sion/Tools/Scripts/wordlists/users/short.txt')
-        run_single('set PASS_FILE /home/sion/Tools/Scripts/wordlists/passwords/304.txt')
+        run_single('set USER_FILE /home/sion/Scripts/wordlists/users/short.txt')
+        run_single('set PASS_FILE /home/sion/Scripts/wordlists/passwords/windows.txt')
         run_single('run')
         run_single('unset USER_FILE')
         run_single('unset PASS_FILE')
