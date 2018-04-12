@@ -8,6 +8,9 @@
 ## Komodo Edit
 *.komodoproject
 
+## macOs
+.DS_Store
+
 ## Metasploit
 history
 local/*
