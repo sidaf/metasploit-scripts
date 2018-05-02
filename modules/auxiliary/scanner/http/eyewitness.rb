@@ -97,7 +97,9 @@ class MetasploitModule < Msf::Auxiliary
       output_threads = []
 
       output_threads << framework.threads.spawn("Module(#{self.refname})-#{pid}-stdout", false, pipe[1]) do |out_pipe|
-        print_status("#{cmd_out.chomp}")
+        out_pipe.each_line do |cmd_out|
+          print_status("#{cmd_out.chomp}")
+        end
       end
 
       output_threads << framework.threads.spawn("Module(#{self.refname})-#{pid}-stderr", false, pipe[2]) do |err_pipe|
