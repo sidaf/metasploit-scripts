@@ -77,7 +77,6 @@ class MetasploitModule < Msf::Auxiliary
 
     # Build Hydra command
     cmd = [cmd_bin]
-    cmd << '--web'
     cmd << '--headless'
     cmd << "--vhost-name #{vhost}"
     cmd << "--single #{url}"
