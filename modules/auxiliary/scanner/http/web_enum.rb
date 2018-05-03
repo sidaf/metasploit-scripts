@@ -225,7 +225,7 @@ class MetasploitModule < Msf::Auxiliary
                     :vhost       => vhost,
                     :ssl         => ssl,
                     :path	       => "#{base_path}#{probe['path']}",
-                    :method      => method,
+                    :method      => method == 'HEAD' ? 'GET' : method,
                     :pname       => '',
                     :proof       => "Res code: [#{response.code}], Output: #{output}",
                     :risk        => 0,
