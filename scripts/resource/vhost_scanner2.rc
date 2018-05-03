@@ -64,8 +64,8 @@
   end
 
   # Define http[s] services
-  services     = ['http', 'alt-http', 'http-proxy']
-  ssl_services = ['https', 'ssl/https', 'ssl/http', 'alt-https', 'ssl/http-proxy', 'ssl/upnp', 'https-proxy', 'ssl/https-alt', 'ssl/blackice-icecap']
+  services     = ['http', 'alt-http', 'http-alt', 'http-proxy']
+  ssl_services = ['https', 'ssl/https', 'ssl/http', 'alt-https',  'https-alt', 'ssl/http-proxy', 'ssl/upnp', 'https-proxy', 'ssl/https-alt', 'ssl/blackice-icecap']
 
   # Run vhost_scanner2 module against each host that may have a corresponding virtual host
   framework.db.services.each do |service|

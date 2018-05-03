@@ -34,7 +34,7 @@
 	########
 
 	print_line
-	print_line("-----===[ auxiliary/scanner/http/http_version ]===-----")
+	print_line("-----===[ auxiliary/scanner/http/web_enum ]===-----")
 	print_line
 
 	# Check if we have a database connection
@@ -47,31 +47,26 @@
 	services     = ['http', 'alt-http', 'http-alt', 'http-proxy']
 	ssl_services = ['https', 'ssl/https', 'ssl/http', 'alt-https', 'https-alt', 'ssl/http-proxy', 'ssl/upnp', 'https-proxy', 'ssl/https-alt', 'ssl/blackice-icecap']
 
-	# Get a list of target services
-	targets = []
+	# Get a list of websites
 	framework.db.services.each do |service|
 		next unless service.host and service.state.eql? 'open' and service.proto.eql? 'tcp'
 		next if not services.include?(service.name) and not ssl_services.include?(service.name)
+		next if service.web_sites.count < 1
 
-		targets << { :ip => service.host.address, :port => service.port, :ssl => ssl_services.include?(service.name) ? true : false }
-	end
+		service.web_sites.each do |site|
+			print_status("Starting discovery on #{service.host.address}:#{service.port}/#{service.proto}  [#{site.vhost}]")
+			next
 
-	if targets.empty?
-		print_warning "No targets found."
-	else
-		# Setup the module
-		mod = "scanner/http/http_version"
-		progress = false
-		verbose = false
+			# Setup the module
+			mod = "scanner/http/web_enum"
+			progress = false
+			verbose = false
+			rhosts = service.host.address
+			rport = service.port
+			vhost = site.vhost
+			ssl = ssl_services.include?(service.name) ? true : false
 
-		# Group common options and run module against each group
-		groups = targets.group_by { |t| t[:port].to_s + ':' + t[:ssl].to_s }
-		groups.each_value do |group|
-			rhosts = (group.map { |t| t[:ip] }).join(" ")
-			rport = group[0][:port]
-			ssl = group[0][:ssl]
-
-			opts = { 'ShowProgress' => progress, 'VERBOSE' => verbose, 'RHOSTS' => rhosts, 'RPORT' => rport, 'SSL' => ssl }
+			opts = { 'ShowProgress' => progress, 'VERBOSE' => verbose, 'RHOST' => rhosts, 'RPORT' => rport, 'VHOST' => vhost, 'SSL' => ssl }
 			run_auxiliary_module(mod, opts)
 		end
 	end
