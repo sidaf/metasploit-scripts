@@ -19,8 +19,9 @@
 				)
 			else
 				print_status("Would run module 'auxiliary/#{mod}' against:")
-				print_line("RHOSTS: #{opts['RHOSTS']}")
+				print_line("RHOST: #{opts['RHOST']}")
 				print_line("RPORT: #{opts['RPORT']}")
+				print_line("VHOST: #{opts['VHOST']}")
 				print_line("SSL: #{opts['SSL']}")
 				print_line
 			end
@@ -54,20 +55,20 @@
 		next if service.web_sites.count < 1
 
 		service.web_sites.each do |site|
-			scheme = ssl_services.include?(service.name) ? 'https' : 'http'
-			print_status("Starting discovery on #{scheme}://#{service.host.address}:#{service.port} [#{site.vhost}]")
-			next
+			#scheme = ssl_services.include?(service.name) ? 'https' : 'http'
+			#print_status("Starting discovery on #{scheme}://#{service.host.address}:#{service.port} [#{site.vhost}]")
+			#next
 
 			# Setup the module
 			mod = "scanner/http/web_enum"
 			progress = false
 			verbose = false
-			rhosts = service.host.address
+			rhost = service.host.address
 			rport = service.port
 			vhost = site.vhost
 			ssl = ssl_services.include?(service.name) ? true : false
 
-			opts = { 'ShowProgress' => progress, 'VERBOSE' => verbose, 'RHOST' => rhosts, 'RPORT' => rport, 'VHOST' => vhost, 'SSL' => ssl }
+			opts = { 'ShowProgress' => progress, 'VERBOSE' => verbose, 'RHOST' => rhost, 'RPORT' => rport, 'VHOST' => vhost, 'SSL' => ssl }
 			run_auxiliary_module(mod, opts)
 		end
 	end
