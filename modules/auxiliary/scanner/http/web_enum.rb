@@ -346,7 +346,7 @@ class MetasploitModule < Msf::Auxiliary
     }
 
     if response.headers['content-type']
-      info[:ctype] = page.headers['content-type']
+      info[:ctype] = response.headers['content-type']
     end
 
     # TODO
