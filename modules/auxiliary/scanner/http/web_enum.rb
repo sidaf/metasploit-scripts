@@ -75,13 +75,13 @@ class MetasploitModule < Msf::Auxiliary
     if ecode.zero?
       random_file = Rex::Text.rand_text_alpha(8).chomp
 
-      url = "#{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}/#{random_file}"
+      testurl = "#{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}/#{random_file}"
       resolve = Ethon::Curl.slist_append(nil, "#{vhost}:#{rport}:#{rhost}")
 
       Typhoeus::Config.user_agent = datastore['UserAgent']
 
       request = Typhoeus::Request.new(
-          url,
+          testurl,
           resolve: resolve,
           method: 'GET',
           followlocation: false,
@@ -227,7 +227,7 @@ class MetasploitModule < Msf::Auxiliary
                     :path	       => "#{base_path}#{probe['path']}",
                     :method      => method == 'HEAD' ? 'GET' : method,
                     :pname       => '',
-                    :proof       => "Res code: [#{response.code}], Output: #{output}",
+                    :proof       => "Response code: [#{response.code}], Match: #{output}",
                     :risk        => 0,
                     :confidence  => 100,
                     :category    => 'resource',
