@@ -252,7 +252,7 @@ class MetasploitModule < Msf::Auxiliary
                 end
 
                 # Report a valid website and webpage to the database
-                report(response)
+                report(url, response)
 
                 break
               end
@@ -331,7 +331,7 @@ class MetasploitModule < Msf::Auxiliary
     new_str
   end
 
-  def report(response)
+  def report(url, response)
     # Report a website to the database
     site = report_web_site(:wait => true, :host => rhost, :port => rport, :vhost => vhost, :ssl => datastore['SSL'])
 
