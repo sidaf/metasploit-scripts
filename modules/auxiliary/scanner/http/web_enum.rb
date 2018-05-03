@@ -92,12 +92,12 @@ class MetasploitModule < Msf::Auxiliary
       response = request.run
 
       if response.timed_out?
-        print_error("Unable to connect to #{vhost} (#{rhost}), connection timed out")
+        print_error("Unable to connect to #{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}/ (#{rhost}), connection timed out")
         return
       end
 
       if response.code.zero?
-        print_error("Unable to connect to #{vhost} (#{rhost}), could not get a http response")
+        print_error("Unable to connect to #{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}/ (#{rhost}), could not get a http response")
         return
       end
 
@@ -112,14 +112,14 @@ class MetasploitModule < Msf::Auxiliary
         end
 
         if not emesg
-          print_status("Using first 256 bytes of the response as 404 string for #{vhost} (#{rhost})")
+          print_status("Using first 256 bytes of the response as 404 string for #{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}/ (#{rhost})")
           emesg = response.body[0,256]
         else
-          print_status("Using custom 404 string of '#{emesg}' for #{vhost} (#{rhost})")
+          print_status("Using custom 404 string of '#{emesg}' for #{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}/ (#{rhost})")
         end
       else
         ecode = response.code.to_i
-        print_status("Using code '#{ecode}' as not found  for #{vhost} (#{rhost})")
+        print_status("Using code '#{ecode}' as not found for #{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}/ (#{rhost})")
       end
     end
 
