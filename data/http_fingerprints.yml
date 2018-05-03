@@ -2147,6 +2147,13 @@
     match: <version who="sg">([^<]+)</version>
 - probes:
   - method: GET
+    path: /+CSCOE+/logon.html
+  category: security
+  matches:
+  - output: Cisco ASA SSL VPN Service
+    match: ''
+- probes:
+  - method: GET
     path: /actuator/
   - method: GET
     path: /auditevents/
