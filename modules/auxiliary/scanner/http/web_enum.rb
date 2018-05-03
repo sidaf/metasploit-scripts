@@ -92,12 +92,12 @@ class MetasploitModule < Msf::Auxiliary
       response = request.run
 
       if response.timed_out?
-        print_error('Unable to connect, connection timed out')
+        print_error("Unable to connect to #{vhost} (#{rhost}), connection timed out")
         return
       end
 
       if response.code.zero?
-        print_error('Unable to connect, could not get a http response')
+        print_error("Unable to connect to #{vhost} (#{rhost}), could not get a http response")
         return
       end
 
@@ -112,14 +112,14 @@ class MetasploitModule < Msf::Auxiliary
         end
 
         if not emesg
-          print_status('Using first 256 bytes of the response as 404 string')
+          print_status("Using first 256 bytes of the response as 404 string for #{vhost} (#{rhost})")
           emesg = response.body[0,256]
         else
-          print_status("Using custom 404 string of '#{emesg}'")
+          print_status("Using custom 404 string of '#{emesg}' for #{vhost} (#{rhost})")
         end
       else
         ecode = response.code.to_i
-        print_status("Using code '#{ecode}' as not found.")
+        print_status("Using code '#{ecode}' as not found  for #{vhost} (#{rhost})")
       end
     end
 
@@ -162,26 +162,26 @@ class MetasploitModule < Msf::Auxiliary
               response = request.run
 
               if response.timed_out?
-                print_error("#{wmap_base_url}#{base_path}#{probe['path']}, connection timed out")
+                print_error("Unable to connect to #{url} (#{rhost}), connection timed out")
                 # move on to next probe
                 next
               end
 
               if response.code.zero?
-                print_error("#{wmap_base_url}#{base_path}#{probe['path']}, could not get a http response")
+                print_error("Unable to connect to #{url} (#{rhost}), could not get a http response")
                 # move on to next probe
                 next
               end
 
               # check if 404 or error code
               if (response.code == ecode) || (emesg && response.body.index(emesg))
-                vprint_status("#{wmap_base_url}#{base_path}#{probe['path']} [#{response.code}]")
+                vprint_status("#{url} [#{response.code}] (#{rhost})")
                 # move on to next probe
                 next
               else
                 unless displayall
                   unless response.code == 200 || response.code == 401
-                    vprint_status("#{wmap_base_url}#{base_path}#{probe['path']} [#{response.code}]")
+                    vprint_status("#{url} [#{response.code}] (#{rhost})")
                     # move on to next probe
                     next
                   end
@@ -214,7 +214,7 @@ class MetasploitModule < Msf::Auxiliary
               end
 
               if output.nil?
-                vprint_status("#{wmap_base_url}#{base_path}#{probe['path']} [#{response.code}]")
+                vprint_status("#{url} [#{response.code}] (#{rhost})")
                 next
               else
                 report_web_vuln(
@@ -233,10 +233,10 @@ class MetasploitModule < Msf::Auxiliary
                     :name        => 'resource'
                 )
 
-                print_good("#{wmap_base_url}#{base_path}#{probe['path']} [#{response.code}] (#{wmap_target_host})")
+                print_good("#{url} [#{response.code}] (#{rhost})")
 
                 if response.code.to_i == 401
-                  print_status("#{wmap_base_url}#{base_path}#{testdir} requires authentication: #{response.headers['WWW-Authenticate']} (#{wmap_target_host})")
+                  print_status("#{url} [#{response.code}] requires authentication: #{response.headers['WWW-Authenticate']} (#{rhost})")
 
                   report_note(
                       :host	  => rhost,
@@ -244,7 +244,7 @@ class MetasploitModule < Msf::Auxiliary
                       :proto  => 'tcp',
                       :sname	=> (ssl ? 'https' : 'http'),
                       :type	  => 'WWW_AUTHENTICATE',
-                      :data	  => "#{wmap_base_url}#{base_path}#{testdir} Auth: #{response.headers['WWW-Authenticate']}",
+                      :data	  => "#{url} [#{response.code}] Auth: #{response.headers['WWW-Authenticate']} (#{rhost})",
                       :update => :unique_data
                   )
                 end
