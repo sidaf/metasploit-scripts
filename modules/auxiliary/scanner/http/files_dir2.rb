@@ -121,7 +121,8 @@ class MetasploitModule < Msf::Auxiliary
             resolve: resolve,
             method: 'GET',
             followlocation: false,
-            connecttimeout: 20,
+            connecttimeout: 5,
+            timeout: 10,
             ssl_verifyhost: 0,
             ssl_verifypeer: false
         )
@@ -174,7 +175,8 @@ class MetasploitModule < Msf::Auxiliary
             resolve: resolve,
             method: 'GET',
             followlocation: false,
-            connecttimeout: 20,
+            connecttimeout: 5,
+            timeout: 10,
             ssl_verifyhost: 0,
             ssl_verifypeer: false
         )
