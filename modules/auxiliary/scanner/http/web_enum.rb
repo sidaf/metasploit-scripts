@@ -335,7 +335,7 @@ class MetasploitModule < Msf::Auxiliary
     # Report a website to the database
     site = report_web_site(:wait => true, :host => rhost, :port => rport, :vhost => vhost, :ssl => datastore['SSL'])
 
-    uri = URI.parse(response.url)
+    uri = URI.parse(url)
     info = {
         :web_site => site,
         :path     => uri.path,
