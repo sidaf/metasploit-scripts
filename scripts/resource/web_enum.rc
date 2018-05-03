@@ -54,7 +54,8 @@
 		next if service.web_sites.count < 1
 
 		service.web_sites.each do |site|
-			print_status("Starting discovery on #{service.host.address}:#{service.port}/#{service.proto}  [#{site.vhost}]")
+			scheme = ssl_services.include?(service.name) ? 'https' : 'http'
+			print_status("Starting discovery on #{scheme}://#{service.host.address}:#{service.port} [#{site.vhost}]")
 			next
 
 			# Setup the module
