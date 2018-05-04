@@ -69,6 +69,7 @@
 
 			opts = { 'ShowProgress' => progress, 'VERBOSE' => verbose, 'RHOST' => rhost, 'RPORT' => rport, 'VHOST' => vhost, 'SSL' => ssl }
 			run_auxiliary_module(mod, opts)
+			print_line
 		end
 	end
 </ruby>
