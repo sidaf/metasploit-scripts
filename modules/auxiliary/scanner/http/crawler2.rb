@@ -228,7 +228,7 @@ class MetasploitModule < Msf::Auxiliary
     # Make URLs absolute
     absolute_urls = Array.new
     urls.each do |u|
-      absolute_urls << to_absolute(u, url).to_s
+      absolute_urls << to_absolute(u, url).to_s rescue next
     end
 
     # Filter URLs based on regex, domain, schema, and port
