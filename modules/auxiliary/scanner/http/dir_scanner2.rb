@@ -164,7 +164,6 @@ class MetasploitModule < Msf::Auxiliary
           # check if 404 or error code
           if (response.code == ecode) || (emesg && response.body.index(emesg))
             vprint_status(msg)
-            return
           else
             report_web_vuln(
                 :host	       => rhost,
