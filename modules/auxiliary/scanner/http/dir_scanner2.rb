@@ -10,9 +10,7 @@ require_relative '../../../../lib/typhoeus'
 class MetasploitModule < Msf::Auxiliary
   include Msf::Auxiliary::WmapScanDir
   include Msf::Auxiliary::Report
-
-  include Msf::Auxiliary::HttpCrawler
-
+  
   def initialize(info = {})
     super(update_info(info,
       'Name'   		  => 'HTTP Interesting Directory Scanner',

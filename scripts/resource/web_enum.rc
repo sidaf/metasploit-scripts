@@ -36,6 +36,7 @@
 
 	print_line
 	print_line("-----===[ auxiliary/scanner/http/web_enum ]===-----")
+	print_line
 
 	# Check if we have a database connection
 	if framework.db.nil? or not framework.db.active
