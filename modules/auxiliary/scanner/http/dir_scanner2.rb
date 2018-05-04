@@ -133,85 +133,91 @@ class MetasploitModule < Msf::Auxiliary
     hydra = Typhoeus::Hydra.new(:max_concurrency => num_threads)
     resolve = Ethon::Curl.slist_append(nil, "#{vhost}:#{rport}:#{rhost}")
 
-    while testdir = queue.pop(true)
-      testurl = "#{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}#{testdir}"
+    begin
+      while testdir = queue.pop(true)
+        testurl = "#{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}#{testdir}"
 
-      request = Typhoeus::Request.new(
-          testurl,
-          resolve: resolve,
-          method: 'GET',
-          followlocation: false,
-          connecttimeout: 5,
-          timeout: 10,
-          ssl_verifyhost: 0,
-          ssl_verifypeer: false
-      )
+        request = Typhoeus::Request.new(
+            testurl,
+            resolve: resolve,
+            method: 'GET',
+            followlocation: false,
+            connecttimeout: 5,
+            timeout: 10,
+            ssl_verifyhost: 0,
+            ssl_verifypeer: false
+        )
 
-      request.on_complete do |response|
-        if response.timed_out?
-          print_error("Unable to connect to #{testurl} (#{rhost}), connection timed out")
-          return
-        end
-
-        if response.code.zero?
-          print_error("Unable to connect to #{testurl} (#{rhost}), could not get a http response")
-          return
-        end
-
-        msg = "#{response.code || "ERR"} - #{rhost} - #{testurl}"
-
-        # check if 404 or error code
-        if (response.code == ecode) || (emesg && response.body.index(emesg))
-          vprint_status(msg)
-          return
-        else
-          report_web_vuln(
-              :host	       => rhost,
-              :port	       => rport,
-              :vhost       => vhost,
-              :ssl         => ssl,
-              :path	       => "#{base_path}#{testdir}",
-              :method      => 'GET',
-              :pname       => '',
-              :proof       => "Res code: #{response.code.to_s}",
-              :risk        => 0,
-              :confidence  => 100,
-              :category    => 'directory',
-              :description => 'Directory found.',
-              :name        => 'directory'
-          )
-
-          print_good(msg)
-
-          if response.code.to_i == 401
-            print_status("#{wmap_base_url}#{base_path}#{testdir} requires authentication: #{response.headers['WWW-Authenticate']} (#{wmap_target_host})")
-
-            report_note(
-                :host	  => rhost,
-                :port	  => rport,
-                :proto  => 'tcp',
-                :sname	=> (ssl ? 'https' : 'http'),
-                :type	  => 'WWW_AUTHENTICATE',
-                :data	  => "#{wmap_base_url}#{base_path}#{testdir} Auth: #{response.headers['WWW-Authenticate']}",
-                :update => :unique_data
-            )
+        request.on_complete do |response|
+          if response.timed_out?
+            print_error("Unable to connect to #{testurl} (#{rhost}), connection timed out")
+            return
           end
 
-          # Report a valid website and webpage to the database
-          report(testurl, response)
+          if response.code.zero?
+            print_error("Unable to connect to #{testurl} (#{rhost}), could not get a http response")
+            return
+          end
 
-          if recursive
-            File.open(datastore['DICTIONARY'], 'rb').each_line do |testd|
-              dir = testd.strip                   # remove newline characters
-              dir += '/' if dir[-1,1] != '/'      # add trailing slash if it doesn't exist
-              dir = dir[1..-1] if dir[0,1] == '/' # remove leading slash if it exists
-              queue.push "#{testdir}#{dir}"
+          msg = "#{response.code || "ERR"} - #{rhost} - #{testurl}"
+
+          # check if 404 or error code
+          if (response.code == ecode) || (emesg && response.body.index(emesg))
+            vprint_status(msg)
+            return
+          else
+            report_web_vuln(
+                :host	       => rhost,
+                :port	       => rport,
+                :vhost       => vhost,
+                :ssl         => ssl,
+                :path	       => "#{base_path}#{testdir}",
+                :method      => 'GET',
+                :pname       => '',
+                :proof       => "Res code: #{response.code.to_s}",
+                :risk        => 0,
+                :confidence  => 100,
+                :category    => 'directory',
+                :description => 'Directory found.',
+                :name        => 'directory'
+            )
+
+            print_good(msg)
+
+            if response.code.to_i == 401
+              print_status("#{wmap_base_url}#{base_path}#{testdir} requires authentication: #{response.headers['WWW-Authenticate']} (#{wmap_target_host})")
+
+              report_note(
+                  :host	  => rhost,
+                  :port	  => rport,
+                  :proto  => 'tcp',
+                  :sname	=> (ssl ? 'https' : 'http'),
+                  :type	  => 'WWW_AUTHENTICATE',
+                  :data	  => "#{wmap_base_url}#{base_path}#{testdir} Auth: #{response.headers['WWW-Authenticate']}",
+                  :update => :unique_data
+              )
+            end
+
+            # Report a valid website and webpage to the database
+            report(testurl, response)
+
+            if recursive
+              File.open(datastore['DICTIONARY'], 'rb').each_line do |testd|
+                dir = testd.strip                   # remove newline characters
+                dir += '/' if dir[-1,1] != '/'      # add trailing slash if it doesn't exist
+                dir = dir[1..-1] if dir[0,1] == '/' # remove leading slash if it exists
+                queue.push "#{testdir}#{dir}"
+              end
             end
           end
         end
-      end
 
-      hydra.queue request
+        hydra.queue request
+      end
+    rescue ThreadError
+    rescue => e
+      puts e.backtrace
+      raise
     end
 
     hydra.run
