@@ -24,7 +24,7 @@ class MetasploitModule < Msf::Auxiliary
           OptString.new('VHOST', [ false, "HTTP server virtual host" ]),
           OptBool.new('SSL', [ false, 'Negotiate SSL/TLS for outgoing connections', false]),
           OptString.new('PATH', [ true,  "The starting path to crawl", '/']),
-          OptInt.new('MAX_PAGES', [ true, 'The maximum number of pages to crawl per URL', 500]),
+          OptInt.new('MAX_PAGES', [ true, 'The maximum number of pages to crawl per URL', 100]),
           #OptInt.new('MAX_MINUTES', [ true, 'The maximum number of minutes to spend on each URL', 5]),
           OptBool.new('ENABLE_COOKIES', [ true, 'Enable cookie persistence during crawl' ])
       ]
@@ -125,6 +125,8 @@ class MetasploitModule < Msf::Auxiliary
             print_error("#{url}, could not get a http response (#{wmap_target_host})")
             return
           end
+
+          count += 1
 
           # Extract any interesting data from the page
           process_page(t, url, response, count)
@@ -255,7 +257,7 @@ class MetasploitModule < Msf::Auxiliary
   # - The path of any URL found by the crawler (web.uri, :path => page.path)
   # - The occurrence of any form (web.form :path, :type (get|post|path_info), :params)
   def process_page(t, url, response, count)
-    msg = "[#{"%.5d" % count}/#{"%.5d" % datastore['MAX_PAGES']}]  #{response.code || "ERR"} - #{t[:host]} - #{url}"
+    msg = "[#{"%.3d" % count}/#{"%.3d" % datastore['MAX_PAGES']}]  #{response.code || "ERR"} - #{t[:host]} - #{url}"
     case response.code
       when 301,302
         if response.headers and response.headers["location"]
@@ -474,7 +476,7 @@ class MetasploitModule < Msf::Auxiliary
     relative = URI(link)
     absolute = url.merge(relative)
 
-    absolute.path = '/' if absolute.path.empty?
+    absolute.path = '/' if absolute.path.nil? or absolute.path.empty?
 
     return absolute
   end
