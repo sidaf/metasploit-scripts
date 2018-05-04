@@ -240,7 +240,7 @@ class MetasploitModule < Msf::Auxiliary
                     :name        => 'resource'
                 )
 
-                print_good(msg)
+                print_good("#{msg} [#{output}]")
 
                 if response.code.to_i == 401
                   print_good((" " * 24) + "WWW-Authenticate: #{response.headers['WWW-Authenticate']}")
