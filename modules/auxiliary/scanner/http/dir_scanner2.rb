@@ -10,7 +10,7 @@ require_relative '../../../../lib/typhoeus'
 class MetasploitModule < Msf::Auxiliary
   include Msf::Auxiliary::WmapScanDir
   include Msf::Auxiliary::Report
-  
+
   def initialize(info = {})
     super(update_info(info,
       'Name'   		  => 'HTTP Interesting Directory Scanner',
@@ -27,9 +27,9 @@ class MetasploitModule < Msf::Auxiliary
           Opt::RPORT(80),
           OptString.new('VHOST', [ false, "HTTP server virtual host" ]),
           OptBool.new('SSL', [ false, 'Negotiate SSL/TLS for outgoing connections', false]),
-          OptString.new('PATH', [ true,  "The path  to identify files", '/']),
-          OptPath.new('DICTIONARY', [ false, "Path of word dictionary to use", File.join(Msf::Config.data_directory, "wmap", "wmap_dirs.txt")]),
-          OptBool.new('RECURSIVE', [ false, 'Recursively scan identified directories', true])
+          OptString.new('PATH', [ true,  "Base path to identify directories", '/']),
+          OptPath.new('DICTIONARY', [ true, "Path of word dictionary to use", File.join(Msf::Config.data_directory, "wmap", "wmap_dirs.txt")]),
+          OptBool.new('RECURSIVE', [ true, 'Recursively scan identified directories', true])
       ]
     )
 
@@ -67,6 +67,7 @@ class MetasploitModule < Msf::Auxiliary
       dir = testd.strip                   # remove newline characters
       dir += '/' if dir[-1,1] != '/'      # add trailing slash if it doesn't exist
       dir = dir[1..-1] if dir[0,1] == '/' # remove leading slash if it exists
+      print_status dir
       queue.push dir
     end
 
