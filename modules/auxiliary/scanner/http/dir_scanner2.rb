@@ -67,7 +67,6 @@ class MetasploitModule < Msf::Auxiliary
       dir = testd.strip                   # remove newline characters
       dir += '/' if dir[-1,1] != '/'      # add trailing slash if it doesn't exist
       dir = dir[1..-1] if dir[0,1] == '/' # remove leading slash if it exists
-      print_status dir
       queue.push dir
     end
 
