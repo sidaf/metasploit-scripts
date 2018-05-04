@@ -253,7 +253,7 @@ class MetasploitModule < Msf::Auxiliary
   # - The path of any URL found by the crawler (web.uri, :path => page.path)
   # - The occurrence of any form (web.form :path, :type (get|post|path_info), :params)
   def process_page(t, url, response, count)
-    msg = "[#{"%.5d" % count}/#{"%.5d" % datastore['MAX_PAGES']}]    #{response.code || "ERR"} - #{t[:host]} - #{url}"
+    msg = "[#{"%.5d" % count}/#{"%.5d" % datastore['MAX_PAGES']}]  #{response.code || "ERR"} - #{t[:host]} - #{url}"
     case response.code
       when 301,302
         if response.headers and response.headers["location"]
