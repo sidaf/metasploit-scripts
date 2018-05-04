@@ -117,22 +117,22 @@ class MetasploitModule < Msf::Auxiliary
 
         request.on_complete do |response|
           if response.timed_out?
-            print_error("Connection timed out for #{url}")
+            print_error("Connection timed out for #{response.request.url}")
             return
           end
 
           if response.code.zero?
-            print_error("Could not get a http response from #{url}")
+            print_error("Could not get a http response from #{response.request.url}")
             return
           end
 
           count += 1
 
           # Extract any interesting data from the page
-          process_page(t, url, response, count)
+          process_page(t, response, count)
 
           # Extract URLs
-          urls = extract_urls(t, url, response)
+          urls = extract_urls(t, response)
 
           # Add URLs to queue, unless already visited
           urls.each do |new_url|
@@ -148,7 +148,7 @@ class MetasploitModule < Msf::Auxiliary
     end
   end
 
-  def extract_urls(t, url, response)
+  def extract_urls(t, response)
     urls = Array.new
 
     doc = Nokogiri::HTML(response.body) if response.body rescue nil
@@ -207,11 +207,11 @@ class MetasploitModule < Msf::Auxiliary
               end
 
       # Meta-refresh
-      urls += doc.search( "//meta[translate(@http-equiv,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz') = 'refresh']" ).map do |url|
+      urls += doc.search( "//meta[translate(@http-equiv,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz') = 'refresh']" ).map do |httpequiv|
         begin
-          _, url = url['content'].split(';', 2)
-          next unless url
-          unquote(url.split('=', 2).last)
+          _, u = httpequiv['content'].split(';', 2)
+          next unless u
+          unquote(u.split('=', 2).last)
         rescue
           next
         end
@@ -228,16 +228,16 @@ class MetasploitModule < Msf::Auxiliary
     # Make URLs absolute
     absolute_urls = Array.new
     urls.each do |u|
-      absolute_urls << to_absolute(u, url).to_s rescue next
+      absolute_urls << to_absolute(u, response.request.url).to_s rescue next
     end
 
     # Filter URLs based on regex, domain, schema, and port
     valid_urls = Array.new
     absolute_urls.each do |u|
       next if u =~ get_link_filter
-      next unless URI(url).host == URI(u).host
-      next unless URI(url).scheme == URI(u).scheme
-      next unless URI(url).port == URI(u).port
+      next unless URI(response.request.url).host == URI(u).host
+      next unless URI(response.request.url).scheme == URI(u).scheme
+      next unless URI(response.request.url).port == URI(u).port
       # TODO ignore ajax links
       # If we get to here, url must be valid
       valid_urls << u
@@ -256,8 +256,8 @@ class MetasploitModule < Msf::Auxiliary
   # Data we will report:
   # - The path of any URL found by the crawler (web.uri, :path => page.path)
   # - The occurrence of any form (web.form :path, :type (get|post|path_info), :params)
-  def process_page(t, url, response, count)
-    msg = "[#{"%.3d" % count}/#{"%.3d" % datastore['MAX_PAGES']}]  #{response.code || "ERR"} - #{t[:host]} - #{url}"
+  def process_page(t, response, count)
+    msg = "[#{"%.3d" % count}/#{"%.3d" % datastore['MAX_PAGES']}]  #{response.code || "ERR"} - #{t[:host]} - #{response.request.url}"
     case response.code
       when 301,302
         if response.headers and response.headers["location"]
@@ -269,7 +269,7 @@ class MetasploitModule < Msf::Auxiliary
         print_good(msg)
       when 401
         print_good(msg)
-        print_status((" " * 24) + "WWW-Authenticate: #{response.headers['WWW-Authenticate']}")
+        print_good((" " * 24) + "WWW-Authenticate: #{response.headers['WWW-Authenticate']}")
       when 200
         print_status(msg)
       when 404
@@ -281,7 +281,7 @@ class MetasploitModule < Msf::Auxiliary
     #
     # Process the web page
     #
-    uri = URI(url)
+    uri = URI(response.request.url)
     info = {
         :web_site => t[:site],
         :path     => uri.path,
@@ -326,7 +326,7 @@ class MetasploitModule < Msf::Auxiliary
     forms = []
     form_template = { :web_site => t[:site] }
 
-    if form = form_from_url(t[:site], url)
+    if form = form_from_url(t[:site], response.request.url)
       forms << form
     end
 

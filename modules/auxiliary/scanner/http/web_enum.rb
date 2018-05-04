@@ -241,7 +241,7 @@ class MetasploitModule < Msf::Auxiliary
                 print_good(msg)
 
                 if response.code.to_i == 401
-                  print_status((" " * 24) + "WWW-Authenticate: #{response.headers['WWW-Authenticate']}")
+                  print_good((" " * 24) + "WWW-Authenticate: #{response.headers['WWW-Authenticate']}")
 
                   report_note(
                       :host	  => rhost,
@@ -255,7 +255,7 @@ class MetasploitModule < Msf::Auxiliary
                 end
 
                 # Report a valid website and webpage to the database
-                report(url, response)
+                report(response)
 
                 break
               end
@@ -334,11 +334,11 @@ class MetasploitModule < Msf::Auxiliary
     new_str
   end
 
-  def report(url, response)
+  def report(response)
     # Report a website to the database
     site = report_web_site(:wait => true, :host => rhost, :port => rport, :vhost => vhost, :ssl => datastore['SSL'])
 
-    uri = URI.parse(url)
+    uri = URI.parse(response.request.url)
     info = {
         :web_site => site,
         :path     => uri.path,

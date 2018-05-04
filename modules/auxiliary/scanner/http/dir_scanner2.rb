@@ -150,16 +150,16 @@ class MetasploitModule < Msf::Auxiliary
 
         request.on_complete do |response|
           if response.timed_out?
-            print_error("Unable to connect to #{testurl} (#{rhost}), connection timed out")
+            print_error("Unable to connect to #{response.request.url} (#{rhost}), connection timed out")
             return
           end
 
           if response.code.zero?
-            print_error("Unable to connect to #{testurl} (#{rhost}), could not get a http response")
+            print_error("Unable to connect to #{response.request.url} (#{rhost}), could not get a http response")
             return
           end
 
-          msg = "#{response.code || "ERR"} - #{rhost} - #{testurl}"
+          msg = "#{response.code || "ERR"} - #{rhost} - #{response.request.url}"
 
           # check if 404 or error code
           if (response.code == ecode) || (emesg && response.body.index(emesg))
@@ -184,7 +184,7 @@ class MetasploitModule < Msf::Auxiliary
             print_good(msg)
 
             if response.code.to_i == 401
-              print_status("#{wmap_base_url}#{base_path}#{testdir} requires authentication: #{response.headers['WWW-Authenticate']} (#{wmap_target_host})")
+              print_good((" " * 24) + "WWW-Authenticate: #{response.headers['WWW-Authenticate']}")
 
               report_note(
                   :host	  => rhost,
@@ -198,7 +198,7 @@ class MetasploitModule < Msf::Auxiliary
             end
 
             # Report a valid website and webpage to the database
-            report(testurl, response)
+            report(response)
 
             if recursive
               File.open(datastore['DICTIONARY'], 'rb').each_line do |testd|
@@ -256,11 +256,11 @@ class MetasploitModule < Msf::Auxiliary
     new_str
   end
 
-  def report(url, response)
+  def report(response)
     # Report a website to the database
     site = report_web_site(:wait => true, :host => rhost, :port => rport, :vhost => vhost, :ssl => datastore['SSL'])
 
-    uri = URI.parse(url)
+    uri = URI.parse(response.request.url)
     info = {
         :web_site => site,
         :path     => uri.path,
