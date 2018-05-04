@@ -1,0 +1,75 @@
+<ruby>
+	####################
+	# Helper functions #
+	####################
+
+	def run_auxiliary_module(mod, opts, as_job: false, quiet: false, dry_run: false)
+		m = framework.auxiliary.create(mod)
+		unless m.nil?
+			opts.each do |o, v|
+				m.datastore[o] = v
+			end
+			m.options.validate(m.datastore)
+			if not dry_run
+				m.run_simple(
+					'LocalInput' => self.input,
+					'LocalOutput' => self.output,
+					'RunAsJob' => as_job,
+					'Quiet' => quiet
+				)
+			else
+				print_status("Would run module 'auxiliary/#{mod}' against:")
+				print_line("RHOST: #{opts['RHOST']}")
+				print_line("RPORT: #{opts['RPORT']}")
+				print_line("VHOST: #{opts['VHOST']}")
+				print_line("SSL: #{opts['SSL']}")
+				print_line
+			end
+		else
+			print_error("module auxiliary/#{mod} does not exist")
+		end
+	end
+
+	########
+	# Main #
+	########
+
+	print_line
+	print_line("-----===[ auxiliary/scanner/http/file_brute ]===-----")
+
+	# Check if we have a database connection
+	if framework.db.nil? or not framework.db.active
+		print_error('Database not connected (try db_connect)')
+		return
+	end
+
+	# Define http[s] services
+	services     = ['http', 'alt-http', 'http-alt', 'http-proxy']
+	ssl_services = ['https', 'ssl/https', 'ssl/http', 'alt-https', 'https-alt', 'ssl/http-proxy', 'ssl/upnp', 'https-proxy', 'ssl/https-alt', 'ssl/blackice-icecap']
+
+	# Get a list of websites
+	framework.db.services.each do |service|
+		next unless service.host and service.state.eql? 'open' and service.proto.eql? 'tcp'
+		next if not services.include?(service.name) and not ssl_services.include?(service.name)
+		next if service.web_sites.count < 1
+
+		service.web_sites.each do |site|
+			#scheme = ssl_services.include?(service.name) ? 'https' : 'http'
+			#print_status("Starting discovery on #{scheme}://#{service.host.address}:#{service.port} [#{site.vhost}]")
+			#next
+
+			# Setup the module
+			mod = "scanner/http/file_brute"
+			progress = false
+			verbose = false
+			rhost = service.host.address
+			rport = service.port
+			vhost = site.vhost
+			ssl = ssl_services.include?(service.name) ? true : false
+
+			opts = { 'ShowProgress' => progress, 'VERBOSE' => verbose, 'RHOST' => rhost, 'RPORT' => rport, 'VHOST' => vhost, 'SSL' => ssl }
+			run_auxiliary_module(mod, opts)
+			print_line
+		end
+	end
+</ruby>
