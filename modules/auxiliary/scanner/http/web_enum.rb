@@ -75,7 +75,8 @@ class MetasploitModule < Msf::Auxiliary
     if ecode.zero?
       random_file = Rex::Text.rand_text_alpha(8).chomp
 
-      testurl = "#{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}/#{random_file}"
+      baseurl = "#{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}"
+      testurl = "#{baseurl}/#{random_file}"
       resolve = Ethon::Curl.slist_append(nil, "#{vhost}:#{rport}:#{rhost}")
 
       Typhoeus::Config.user_agent = datastore['UserAgent']
@@ -93,12 +94,12 @@ class MetasploitModule < Msf::Auxiliary
       response = request.run
 
       if response.timed_out?
-        print_error("Unable to connect to #{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}/ (#{rhost}), connection timed out")
+        print_error("Unable to connect to #{baseurl} (#{rhost}), connection timed out")
         return
       end
 
       if response.code.zero?
-        print_error("Unable to connect to #{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}/ (#{rhost}), could not get a http response")
+        print_error("Unable to connect to #{baseurl} (#{rhost}), could not get a http response")
         return
       end
 
@@ -113,14 +114,14 @@ class MetasploitModule < Msf::Auxiliary
         end
 
         if not emesg
-          print_status("Using first 256 bytes of the response as 404 string for #{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}/ (#{rhost})")
+          print_status("Using first 256 bytes of the response as 404 string for #{baseurl} (#{rhost})")
           emesg = response.body[0,256]
         else
-          print_status("Using custom 404 string of '#{emesg}' for #{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}/ (#{rhost})")
+          print_status("Using custom 404 string of '#{emesg}' for #{baseurl} (#{rhost})")
         end
       else
         ecode = response.code.to_i
-        print_status("Using code '#{ecode}' as not found for #{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}/ (#{rhost})")
+        print_status("Using code '#{ecode}' as not found for #{baseurl} (#{rhost})")
       end
     end
 

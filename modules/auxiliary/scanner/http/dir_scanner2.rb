@@ -78,7 +78,8 @@ class MetasploitModule < Msf::Auxiliary
     if ecode.zero?
       random_file = Rex::Text.rand_text_alpha(8).chomp
 
-      url = "#{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}#{random_file}"
+      baseurl = "#{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}"
+      url = "#{baseurl}#{random_file}"
       resolve = Ethon::Curl.slist_append(nil, "#{vhost}:#{rport}:#{rhost}")
 
       Typhoeus::Config.user_agent = datastore['UserAgent']
@@ -96,12 +97,12 @@ class MetasploitModule < Msf::Auxiliary
       response = request.run
 
       if response.timed_out?
-        print_error("Unable to connect, connection timed out (#{wmap_target_host})")
+        print_error("Unable to connect to #{baseurl} (#{rhost}), connection timed out")
         return
       end
 
       if response.code.zero?
-        print_error("Unable to connect, could not get a http response (#{wmap_target_host})")
+        print_error("Unable to connect to #{baseurl} (#{rhost}), could not get a http response")
         return
       end
 
@@ -116,14 +117,14 @@ class MetasploitModule < Msf::Auxiliary
         end
 
         if not emesg
-          print_status('Using first 256 bytes of the response as 404 string')
+          print_status("Using first 256 bytes of the response as 404 string for #{baseurl} (#{rhost})")
           emesg = response.body[0,256]
         else
-          print_status("Using custom 404 string of '#{emesg}'")
+          print_status("Using custom 404 string of '#{emesg}' for #{baseurl} (#{rhost})")
         end
       else
         ecode = response.code.to_i
-        print_status("Using code '#{ecode}' as not found.")
+        print_status("Using code '#{ecode}' as not found for #{baseurl} (#{rhost})")
       end
     end
 
@@ -150,18 +151,20 @@ class MetasploitModule < Msf::Auxiliary
 
       request.on_complete do |response|
         if response.timed_out?
-          print_error("#{wmap_base_url}#{base_path}#{testdir}, connection timed out (#{wmap_target_host})")
+          print_error("Unable to connect to #{testurl} (#{rhost}), connection timed out")
           return
         end
 
         if response.code.zero?
-          print_error("#{wmap_base_url}#{base_path}#{testdir}, could not get a http response (#{wmap_target_host})")
+          print_error("Unable to connect to #{testurl} (#{rhost}), could not get a http response")
           return
         end
 
+        msg = "#{response.code || "ERR"} - #{rhost} - #{testurl}"
+
         # check if 404 or error code
         if (response.code == ecode) || (emesg && response.body.index(emesg))
-          vprint_status("#{wmap_base_url}#{base_path}#{testdir} [#{response.code}]")
+          vprint_status(msg)
           return
         else
           report_web_vuln(
@@ -180,7 +183,7 @@ class MetasploitModule < Msf::Auxiliary
               :name        => 'directory'
           )
 
-          print_good("Found #{wmap_base_url}#{base_path}#{testdir} [#{response.code}] (#{wmap_target_host})")
+          print_good(msg)
 
           if response.code.to_i == 401
             print_status("#{wmap_base_url}#{base_path}#{testdir} requires authentication: #{response.headers['WWW-Authenticate']} (#{wmap_target_host})")
@@ -197,7 +200,7 @@ class MetasploitModule < Msf::Auxiliary
           end
 
           # Report a valid website and webpage to the database
-          report(response)
+          report(testurl, response)
 
           if recursive
             File.open(datastore['DICTIONARY'], 'rb').each_line do |testd|
@@ -250,11 +253,11 @@ class MetasploitModule < Msf::Auxiliary
     new_str
   end
 
-  def report(response)
+  def report(url, response)
     # Report a website to the database
     site = report_web_site(:wait => true, :host => rhost, :port => rport, :vhost => vhost, :ssl => datastore['SSL'])
 
-    uri = URI.parse(response.url)
+    uri = URI.parse(url)
     info = {
         :web_site => site,
         :path     => uri.path,
