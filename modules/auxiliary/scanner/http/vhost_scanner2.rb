@@ -56,7 +56,7 @@ class MetasploitModule < Msf::Auxiliary
 
       Typhoeus::Config.user_agent = datastore['UserAgent']
 
-      request = Typhoeus::Request.new(
+      trequest = Typhoeus::Request.new(
           url,
           resolve: resolve,
           method: 'GET',
@@ -67,19 +67,19 @@ class MetasploitModule < Msf::Auxiliary
       )
 
       #print_status("[#{ip}] Sending request with a random domain #{randvhost}")
-      response = request.run
+      tresponse = trequest.run
 
-      if response.timed_out?
+      if tresponse.timed_out?
         print_error("[#{ip}] Unable to connect to #{url}, connection timed out")
         return
       end
 
-      if response.code.zero?
+      if tresponse.code.zero?
         print_error("[#{ip}] Unable to connect to #{url}, could not get a http response")
         return
       end
 
-      resparr[n] = response.body
+      resparr[n] = tresponse.body
     end
 
     if resparr[0] != resparr[1]

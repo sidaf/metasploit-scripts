@@ -82,7 +82,7 @@ class MetasploitModule < Msf::Auxiliary
 
       Typhoeus::Config.user_agent = datastore['UserAgent']
 
-      request = Typhoeus::Request.new(
+      trequest = Typhoeus::Request.new(
           url,
           resolve: resolve,
           method: 'GET',
@@ -92,23 +92,23 @@ class MetasploitModule < Msf::Auxiliary
           ssl_verifyhost: 0,
           ssl_verifypeer: false
       )
-      response = request.run
+      tresponse = trequest.run
 
-      if response.timed_out?
+      if tresponse.timed_out?
         print_error("TMO - #{rhost} - #{baseurl}")
         return
       end
 
-      if response.code.zero?
+      if tresponse.code.zero?
         print_error("ERR - #{rhost} - #{baseurl}")
         return
       end
 
       # Look for a string we can signature on as well
-      if response.code >= 200 and response.code <= 299
+      if tresponse.code >= 200 and tresponse.code <= 299
         emesg = nil
         File.open(datastore['HTTP404Sigs'], 'rb').each do |str|
-          if response.body.index(str)
+          if tresponse.body.index(str)
             emesg = str
             break
           end
@@ -116,12 +116,12 @@ class MetasploitModule < Msf::Auxiliary
 
         if not emesg
           print_status("Using first 256 bytes of the response as 404 string for #{baseurl} (#{rhost})")
-          emesg = response.body[0,256]
+          emesg = tresponse.body[0,256]
         else
           print_status("Using custom 404 string of '#{emesg}' for #{baseurl} (#{rhost})")
         end
       else
-        ecode = response.code.to_i
+        ecode = tresponse.code.to_i
         print_status("Using code '#{ecode}' as not found for #{baseurl} (#{rhost})")
       end
     end
