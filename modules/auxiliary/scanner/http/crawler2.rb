@@ -24,7 +24,7 @@ class MetasploitModule < Msf::Auxiliary
           OptString.new('VHOST', [ false, "HTTP server virtual host" ]),
           OptBool.new('SSL', [ false, 'Negotiate SSL/TLS for outgoing connections', false]),
           OptString.new('PATH', [ true,  "The starting path to crawl", '/']),
-          OptInt.new('MAX_PAGES', [ true, 'The maximum number of pages to crawl per URL', 100]),
+          OptInt.new('MAX_PAGES', [ true, 'The maximum number of pages to crawl per URL', 500]),
           #OptInt.new('MAX_MINUTES', [ true, 'The maximum number of minutes to spend on each URL', 5]),
           OptBool.new('ENABLE_COOKIES', [ true, 'Enable cookie persistence during crawl' ])
       ]
@@ -73,7 +73,7 @@ class MetasploitModule < Msf::Auxiliary
 
     t[:site] = report_web_site(:wait => true, :host => t[:host], :port => t[:port], :vhost => t[:vhost], :ssl => t[:ssl])
 
-    print_status("Crawling #{t.to_url}...")
+    print_status("Crawling #{t.to_url} (#{rhost})")
 
     Typhoeus::Config.user_agent = datastore['UserAgent']
     hydra = Typhoeus::Hydra.new(:max_concurrency => num_threads)
@@ -117,12 +117,12 @@ class MetasploitModule < Msf::Auxiliary
 
         request.on_complete do |response|
           if response.timed_out?
-            print_error("#{url}, connection timed out (#{wmap_target_host})")
+            print_error("Connection timed out for #{url}")
             return
           end
 
           if response.code.zero?
-            print_error("#{url}, could not get a http response (#{wmap_target_host})")
+            print_error("Could not get a http response from #{url}")
             return
           end
 
