@@ -232,7 +232,7 @@ class MetasploitModule < Msf::Auxiliary
     valid_urls = Array.new
     absolute_urls.each do |u|
       next if u =~ get_link_filter
-      next unless URI(url).host == URL(u).host
+      next unless URI(url).host == URI(u).host
       next if visited.key? u
       # TODO ignore ajax links
       # If we get to here, url must be valid
