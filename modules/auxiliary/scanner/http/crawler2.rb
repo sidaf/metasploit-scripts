@@ -134,7 +134,7 @@ class MetasploitModule < Msf::Auxiliary
 
           # Add URLs to queue
           urls.each do |new_url|
-            queue << new_url.to_s
+            queue << new_url
           end
         end
 
@@ -231,8 +231,8 @@ class MetasploitModule < Msf::Auxiliary
     # Filter URLs based on domain, regex, and visited
     valid_urls = Array.new
     absolute_urls.each do |u|
-      next if u.to_s =~ get_link_filter
-      next unless URI(url).host == u.host
+      next if u =~ get_link_filter
+      next unless URI(url).host == URL(u).host
       next if visited.key? u
       # TODO ignore ajax links
       # If we get to here, url must be valid
@@ -347,13 +347,12 @@ class MetasploitModule < Msf::Auxiliary
 
           target = to_absolute(URI(action), uri) rescue next
 
+          target = URI(target)
           unless target.host == uri.host
             # Replace 127.0.0.1 and non-qualified hostnames with our response.host
             # ex: http://localhost/url OR http://www01/url
-            target_uri = URI(target.to_s)
-            if (target_uri.host.index(".").nil? or target_uri.host == "127.0.0.1")
-              target_uri.host = uri.host
-              target = target_uri
+            if (target.host.index(".").nil? or target.host == "127.0.0.1")
+              target.host = uri.host
             else
               next
             end
