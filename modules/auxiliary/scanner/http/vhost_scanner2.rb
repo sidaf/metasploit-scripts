@@ -83,14 +83,14 @@ class MetasploitModule < Msf::Auxiliary
     end
 
     if resparr[0] != resparr[1]
-      print_error("[#{ip}] Unable to identify error response")
+      print_error("Unable to identify an error response on server #{(ssl ? 'https' : 'http')}://#{rhost}:#{rport}")
       return
     end
 
     #
     # Start testing
     #
-    vprint_status("[#{ip}] Testing with #{valstr.length} fully qualified domain names")
+    print_status("Testing server #{(ssl ? 'https' : 'http')}://#{rhost}:#{rport} with #{valstr.length} fully qualified domain names.")
 
     valstr.each do |thost|
 
@@ -109,7 +109,6 @@ class MetasploitModule < Msf::Auxiliary
           ssl_verifypeer: false
       )
 
-      vprint_status("[#{ip}] Sending request with fully qualified domain, #{thost}")
       response = request.run
 
       if response.timed_out?
@@ -123,7 +122,7 @@ class MetasploitModule < Msf::Auxiliary
       end
 
       if resparr[0] != response.body
-        print_good("[#{ip}] VHOST FOUND. #{url}")
+        print_good("#{url} (#{rhost})")
 
         report_note(
             :host	=> ip,
@@ -143,7 +142,7 @@ class MetasploitModule < Msf::Auxiliary
             :ssl => datastore['SSL']
         )
       else
-        vprint_status("[#{ip}] VHOST NOT FOUND. #{url}")
+        vprint_status("#{url} (#{rhost})")
       end
     end
   end
