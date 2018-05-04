@@ -117,20 +117,20 @@ class MetasploitModule < Msf::Auxiliary
 
         request.on_complete do |response|
           if response.timed_out?
-            print_error("#{response.url}, connection timed out (#{wmap_target_host})")
+            print_error("#{url}, connection timed out (#{wmap_target_host})")
             return
           end
 
           if response.code.zero?
-            print_error("#{response.url}, could not get a http response (#{wmap_target_host})")
+            print_error("#{url}, could not get a http response (#{wmap_target_host})")
             return
           end
 
           # Extract any interesting data from the page
-          process_page(t, response, count)
+          process_page(t, url, response, count)
 
           # Extract URLs
-          urls = extract_urls(t, response)
+          urls = extract_urls(t, url, response)
 
           # Add URLs to queue
           urls.each do |new_url|
@@ -145,7 +145,7 @@ class MetasploitModule < Msf::Auxiliary
     end
   end
 
-  def extract_urls(t, response)
+  def extract_urls(t, url, response)
     urls = Array.new
 
     doc = Nokogiri::HTML(response.body) if response.body rescue nil
@@ -224,19 +224,19 @@ class MetasploitModule < Msf::Auxiliary
 
     # Make URLs absolute
     absolute_urls = Array.new
-    urls.each do |url|
-      absolute_urls << to_absolute(url, response.url).to_s
+    urls.each do |u|
+      absolute_urls << to_absolute(u, url).to_s
     end
 
     # Filter URLs based on domain, regex, and visited
     valid_urls = Array.new
-    absolute_urls.each do |url|
-      next if url.to_s =~ get_link_filter
-      next unless URI(response.url).host == url.host
-      next if visited.key? url
+    absolute_urls.each do |u|
+      next if u.to_s =~ get_link_filter
+      next unless URI(url).host == u.host
+      next if visited.key? u
       # TODO ignore ajax links
       # If we get to here, url must be valid
-      valid_urls << url
+      valid_urls << u
     end
 
     valid_urls
@@ -252,8 +252,8 @@ class MetasploitModule < Msf::Auxiliary
   # Data we will report:
   # - The path of any URL found by the crawler (web.uri, :path => page.path)
   # - The occurrence of any form (web.form :path, :type (get|post|path_info), :params)
-  def process_page(t, response, count)
-    msg = "[#{"%.5d" % count}/#{"%.5d" % datastore['MAX_PAGES']}]    #{response.code || "ERR"} - #{t[:host]} - #{response.url}"
+  def process_page(t, url, response, count)
+    msg = "[#{"%.5d" % count}/#{"%.5d" % datastore['MAX_PAGES']}]    #{response.code || "ERR"} - #{t[:host]} - #{url}"
     case response.code
       when 301,302
         if response.headers and response.headers["location"]
@@ -276,7 +276,7 @@ class MetasploitModule < Msf::Auxiliary
     #
     # Process the web page
     #
-    uri = URI(response.url)
+    uri = URI(url)
     info = {
         :web_site => t[:site],
         :path     => uri.path,
@@ -321,7 +321,7 @@ class MetasploitModule < Msf::Auxiliary
     forms = []
     form_template = { :web_site => t[:site] }
 
-    if form = form_from_url(t[:site], response.url)
+    if form = form_from_url(t[:site], url)
       forms << form
     end
 
