@@ -133,14 +133,12 @@ class MetasploitModule < Msf::Auxiliary
 
       if response.timed_out?
         print_error("TMO - #{rhost} - #{baseurl}")
-        # move on to next probe
-        next
+        return
       end
 
       if response.code.zero?
         print_error("ERR - #{rhost} - #{baseurl}")
-        # move on to next probe
-        next
+        return
       end
 
       # Look for a string we can signature on as well
