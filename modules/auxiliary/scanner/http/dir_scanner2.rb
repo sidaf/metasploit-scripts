@@ -95,13 +95,15 @@ class MetasploitModule < Msf::Auxiliary
       response = request.run
 
       if response.timed_out?
-        print_error("Unable to connect to #{baseurl} (#{rhost}), connection timed out")
-        return
+        print_error("TMO - #{rhost} - #{baseurl}")
+        # move on to next probe
+        next
       end
 
       if response.code.zero?
-        print_error("Unable to connect to #{baseurl} (#{rhost}), could not get a http response")
-        return
+        print_error("ERR - #{rhost} - #{baseurl}")
+        # move on to next probe
+        next
       end
 
       # Look for a string we can signature on as well
@@ -150,13 +152,15 @@ class MetasploitModule < Msf::Auxiliary
 
         request.on_complete do |response|
           if response.timed_out?
-            print_error("Unable to connect to #{response.request.url} (#{rhost}), connection timed out")
-            return
+            print_error("TMO - #{rhost} - #{response.request.url}")
+            # move on to next probe
+            next
           end
 
           if response.code.zero?
-            print_error("Unable to connect to #{response.request.url} (#{rhost}), could not get a http response")
-            return
+            print_error("ERR - #{rhost} - #{response.request.url}")
+            # move on to next probe
+            next
           end
 
           msg = "#{response.code || "ERR"} - #{rhost} - #{response.request.url}"

@@ -117,13 +117,15 @@ class MetasploitModule < Msf::Auxiliary
 
         request.on_complete do |response|
           if response.timed_out?
-            print_error("Connection timed out for #{response.request.url}")
-            return
+            print_error("TMO - #{rhost} - #{response.request.url}")
+            # move on to next probe
+            next
           end
 
           if response.code.zero?
-            print_error("Could not get a http response from #{response.request.url}")
-            return
+            print_error("ERR - #{rhost} - #{response.request.url}")
+            # move on to next probe
+            next
           end
 
           count += 1
