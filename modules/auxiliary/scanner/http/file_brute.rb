@@ -37,7 +37,7 @@ class MetasploitModule < Msf::Auxiliary
     register_advanced_options(
       [
           OptString.new('UserAgent', [false, 'The User-Agent header to use for all requests', Rex::Proto::Http::Client::DefaultUserAgent ]),
-          OptInt.new('ErrorCode', [ true,  "The expected HTTP status code for non existant files", 404]),
+          OptInt.new('ErrorCode', [ true,  "The expected HTTP status code for non existant files"]),
           OptPath.new('HTTP404Sigs', [ false, "Path of 404 signatures to use", File.join(Msf::Config.data_directory, "wmap", "wmap_404s.txt") ]),
           OptInt.new('MaxThreads', [ true, "The maximum number of concurrent requests", 10])
       ]
@@ -340,6 +340,8 @@ class MetasploitModule < Msf::Auxiliary
         ecode = response.code.to_i
         print_status("Using code '#{ecode}' as not found for #{baseurl} (#{rhost})")
       end
+    else
+      print_status("Using assigned code '#{ecode}' as not found for #{baseurl} (#{rhost})")
     end
 
     return ecode, emesg

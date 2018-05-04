@@ -314,6 +314,8 @@ class MetasploitModule < Msf::Auxiliary
         ecode = response.code.to_i
         print_status("Using code '#{ecode}' as not found for #{baseurl} (#{rhost})")
       end
+    else
+      print_status("Using assigned code '#{ecode}' as not found for #{baseurl} (#{rhost})")
     end
 
     return ecode, emesg
