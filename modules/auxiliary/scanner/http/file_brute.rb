@@ -104,6 +104,7 @@ class MetasploitModule < Msf::Auxiliary
     # Detect error code
     #
     ecode, emesg = detect_error_code
+    return if ecode.nil?
 
     #
     # Start testing
@@ -292,7 +293,7 @@ class MetasploitModule < Msf::Auxiliary
       random_file = Rex::Text.rand_text_alpha(8).chomp
 
       baseurl = "#{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}"
-      testurl = "#{baseurl}/#{random_file}"
+      testurl = "#{baseurl}#{random_file}"
       resolve = Ethon::Curl.slist_append(nil, "#{vhost}:#{rport}:#{rhost}")
 
       Typhoeus::Config.user_agent = datastore['UserAgent']
@@ -311,12 +312,12 @@ class MetasploitModule < Msf::Auxiliary
 
       if response.timed_out?
         print_error("TMO - #{rhost} - #{baseurl}")
-        return
+        return nil, nil
       end
 
       if response.code.zero?
         print_error("ERR - #{rhost} - #{baseurl}")
-        return
+        return nil, nil
       end
 
       # Look for a string we can signature on as well

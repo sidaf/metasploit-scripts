@@ -69,6 +69,7 @@ class MetasploitModule < Msf::Auxiliary
     # Detect error code
     #
     ecode, emesg = detect_error_code
+    return if ecode.nil?
 
     #
     # Start testing
@@ -285,12 +286,12 @@ class MetasploitModule < Msf::Auxiliary
 
       if response.timed_out?
         print_error("TMO - #{rhost} - #{baseurl}")
-        return
+        return nil, nil
       end
 
       if response.code.zero?
         print_error("ERR - #{rhost} - #{baseurl}")
-        return
+        return nil, nil
       end
 
       # Look for a string we can signature on as well
