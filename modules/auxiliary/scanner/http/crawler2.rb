@@ -132,8 +132,9 @@ class MetasploitModule < Msf::Auxiliary
           # Extract URLs
           urls = extract_urls(t, url, response)
 
-          # Add URLs to queue
+          # Add URLs to queue, unless already visited
           urls.each do |new_url|
+            next if visited.key? new_url
             queue << new_url
           end
         end
@@ -228,12 +229,11 @@ class MetasploitModule < Msf::Auxiliary
       absolute_urls << to_absolute(u, url).to_s
     end
 
-    # Filter URLs based on domain, regex, and visited
+    # Filter URLs based on domain and regex
     valid_urls = Array.new
     absolute_urls.each do |u|
       next if u =~ get_link_filter
       next unless URI(url).host == URI(u).host
-      next if visited.key? u
       # TODO ignore ajax links
       # If we get to here, url must be valid
       valid_urls << u
