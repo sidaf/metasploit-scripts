@@ -267,8 +267,9 @@ class MetasploitModule < Msf::Auxiliary
         end
       when 500...599
         print_good(msg)
-      when 401,403
+      when 401
         print_good(msg)
+        print_status((" " * 24) + "WWW-Authenticate: #{response.headers['WWW-Authenticate']}")
       when 200
         print_status(msg)
       when 404

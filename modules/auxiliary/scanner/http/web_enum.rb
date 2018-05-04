@@ -175,15 +175,17 @@ class MetasploitModule < Msf::Auxiliary
                 next
               end
 
+              msg = "#{response.code || "ERR"} - #{rhost} - #{url}"
+
               # check if 404 or error code
               if (response.code == ecode) || (emesg && response.body.index(emesg))
-                vprint_status("#{url} [#{response.code}] (#{rhost})")
+                vprint_status(msg)
                 # move on to next probe
                 next
               else
                 unless displayall
                   unless response.code == 200 || response.code == 401
-                    vprint_status("#{url} [#{response.code}] (#{rhost})")
+                    vprint_status(msg)
                     # move on to next probe
                     next
                   end
@@ -216,7 +218,7 @@ class MetasploitModule < Msf::Auxiliary
               end
 
               if output.nil?
-                vprint_status("#{url} [#{response.code}] (#{rhost})")
+                vprint_status(msg)
                 next
               else
                 report_web_vuln(
@@ -235,10 +237,10 @@ class MetasploitModule < Msf::Auxiliary
                     :name        => 'resource'
                 )
 
-                print_good("#{url} [#{response.code}] (#{rhost})")
+                print_good(msg)
 
                 if response.code.to_i == 401
-                  print_status("#{url} [#{response.code}] requires authentication: #{response.headers['WWW-Authenticate']} (#{rhost})")
+                  print_status((" " * 24) + "WWW-Authenticate: #{response.headers['WWW-Authenticate']}")
 
                   report_note(
                       :host	  => rhost,
