@@ -13,7 +13,7 @@ class MetasploitModule < Msf::Auxiliary
 
   def initialize(info = {})
     super(update_info(info,
-      'Name'   		  => 'HTTP Interesting File Scanner',
+      'Name'   		  => 'HTTP File Brute Forcer',
       'Description'	=> %q{
         This module identifies the existence of interesting files in a given directory path.
       },
