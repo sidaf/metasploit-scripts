@@ -287,7 +287,7 @@ class MetasploitModule < Msf::Auxiliary
     }
 
     if response.headers['content-type']
-      info[:ctype] = page.headers['content-type']
+      info[:ctype] = response.headers['content-type']
     end
 
     # TODO
@@ -296,15 +296,15 @@ class MetasploitModule < Msf::Auxiliary
     #end
 
     if response.headers['authorization']
-      info[:auth] = page.headers['authorization']
+      info[:auth] = response.headers['authorization']
     end
 
     if response.headers['location']
-      info[:location] = page.headers['location']
+      info[:location] = response.headers['location']
     end
 
     if response.headers['last-modified']
-      info[:mtime] = page.headers['last-modified']
+      info[:mtime] = response.headers['last-modified']
     end
 
     # Report the web page to the database
@@ -348,7 +348,7 @@ class MetasploitModule < Msf::Auxiliary
           target = to_absolute(URI(action), uri) rescue next
 
           unless target.host == uri.host
-            # Replace 127.0.0.1 and non-qualified hostnames with our page.host
+            # Replace 127.0.0.1 and non-qualified hostnames with our response.host
             # ex: http://localhost/url OR http://www01/url
             target_uri = URI(target.to_s)
             if (target_uri.host.index(".").nil? or target_uri.host == "127.0.0.1")
