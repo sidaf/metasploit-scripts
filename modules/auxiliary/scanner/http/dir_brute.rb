@@ -49,19 +49,14 @@ class MetasploitModule < Msf::Auxiliary
     #
     # Assign variables
     #
-    ecode = datastore['ErrorCode'].to_i
-    emesg = nil
     recursive = datastore['RECURSIVE']
-
-    # Add trailing slash if it does not exist
-    base_path = normalize_uri(datastore['PATH'])
-    if base_path[-1,1] != '/'
-      base_path += '/'
-    end
 
     num_threads = datastore['MaxThreads'].to_i
     num_threads = 1 if num_threads == 0
 
+    #
+    # Generate wordlist
+    #
     queue = Queue.new
     File.open(datastore['DICTIONARY'], 'rb').each_line do |testd|
       dir = testd.strip                   # remove newline characters
@@ -73,58 +68,7 @@ class MetasploitModule < Msf::Auxiliary
     #
     # Detect error code
     #
-    if ecode.zero?
-      random_file = Rex::Text.rand_text_alpha(8).chomp
-
-      baseurl = "#{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}"
-      url = "#{baseurl}#{random_file}"
-      resolve = Ethon::Curl.slist_append(nil, "#{vhost}:#{rport}:#{rhost}")
-
-      Typhoeus::Config.user_agent = datastore['UserAgent']
-
-      trequest = Typhoeus::Request.new(
-          url,
-          resolve: resolve,
-          method: 'GET',
-          followlocation: false,
-          connecttimeout: 5,
-          timeout: 10,
-          ssl_verifyhost: 0,
-          ssl_verifypeer: false
-      )
-      tresponse = trequest.run
-
-      if tresponse.timed_out?
-        print_error("TMO - #{rhost} - #{baseurl}")
-        return
-      end
-
-      if tresponse.code.zero?
-        print_error("ERR - #{rhost} - #{baseurl}")
-        return
-      end
-
-      # Look for a string we can signature on as well
-      if tresponse.code >= 200 and tresponse.code <= 299
-        emesg = nil
-        File.open(datastore['HTTP404Sigs'], 'rb').each do |str|
-          if tresponse.body.index(str)
-            emesg = str
-            break
-          end
-        end
-
-        if not emesg
-          print_status("Using first 256 bytes of the response as 404 string for #{baseurl} (#{rhost})")
-          emesg = tresponse.body[0,256]
-        else
-          print_status("Using custom 404 string of '#{emesg}' for #{baseurl} (#{rhost})")
-        end
-      else
-        ecode = tresponse.code.to_i
-        print_status("Using code '#{ecode}' as not found for #{baseurl} (#{rhost})")
-      end
-    end
+    ecode, emesg = detect_error_code
 
     #
     # Start testing
@@ -240,6 +184,15 @@ class MetasploitModule < Msf::Auxiliary
     datastore['SSL']
   end
 
+  def base_path
+    # Add trailing slash if it does not exist
+    base_path = normalize_uri(datastore['PATH'])
+    if base_path[-1,1] != '/'
+      base_path += '/'
+    end
+    return base_path
+  end
+
   #
   # Returns a modified version of the URI that:
   # 1. Always has a starting slash
@@ -295,5 +248,65 @@ class MetasploitModule < Msf::Auxiliary
 
     # Report the web page to the database
     report_web_page(info)
+  end
+
+  def detect_error_code
+    ecode = datastore['ErrorCode'].to_i
+    emesg = nil
+
+    if ecode.zero?
+      random_file = Rex::Text.rand_text_alpha(8).chomp
+
+      baseurl = "#{(ssl ? 'https' : 'http')}://#{vhost}:#{rport}#{base_path}"
+      testurl = "#{baseurl}#{random_file}/"
+      resolve = Ethon::Curl.slist_append(nil, "#{vhost}:#{rport}:#{rhost}")
+
+      Typhoeus::Config.user_agent = datastore['UserAgent']
+
+      request = Typhoeus::Request.new(
+          testurl,
+          resolve: resolve,
+          method: 'GET',
+          followlocation: false,
+          connecttimeout: 5,
+          timeout: 10,
+          ssl_verifyhost: 0,
+          ssl_verifypeer: false
+      )
+      response = request.run
+
+      if response.timed_out?
+        print_error("TMO - #{rhost} - #{baseurl}")
+        return
+      end
+
+      if response.code.zero?
+        print_error("ERR - #{rhost} - #{baseurl}")
+        return
+      end
+
+      # Look for a string we can signature on as well
+      if response.code >= 200 and response.code <= 299
+        emesg = nil
+        File.open(datastore['HTTP404Sigs'], 'rb').each do |str|
+          if response.body.index(str)
+            emesg = str
+            break
+          end
+        end
+
+        if not emesg
+          print_status("Using first 256 bytes of the response as 404 string for #{baseurl} (#{rhost})")
+          emesg = response.body[0,256]
+        else
+          print_status("Using custom 404 string of '#{emesg}' for #{baseurl} (#{rhost})")
+        end
+      else
+        ecode = response.code.to_i
+        print_status("Using code '#{ecode}' as not found for #{baseurl} (#{rhost})")
+      end
+    end
+
+    return ecode, emesg
   end
 end
