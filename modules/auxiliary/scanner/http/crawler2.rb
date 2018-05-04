@@ -229,11 +229,13 @@ class MetasploitModule < Msf::Auxiliary
       absolute_urls << to_absolute(u, url).to_s
     end
 
-    # Filter URLs based on domain and regex
+    # Filter URLs based on regex, domain, schema, and port
     valid_urls = Array.new
     absolute_urls.each do |u|
       next if u =~ get_link_filter
       next unless URI(url).host == URI(u).host
+      next unless URI(url).schema == URI(u).schema
+      next unless URI(url).port == URI(u).port
       # TODO ignore ajax links
       # If we get to here, url must be valid
       valid_urls << u
