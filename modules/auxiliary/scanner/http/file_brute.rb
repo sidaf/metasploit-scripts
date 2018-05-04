@@ -162,7 +162,15 @@ class MetasploitModule < Msf::Auxiliary
                 :name        => 'file'
             )
 
-            print_good(msg)
+            if response.code.to_i == 301 or response.code.to_i == 302
+              if response.headers and response.headers["location"]
+                print_status(msg + " -> " + response.headers["location"].to_s)
+              else
+                print_status(msg)
+              end
+            else
+              print_good(msg)
+            end
 
             if response.code.to_i == 401
               print_good((" " * 24) + "WWW-Authenticate: #{response.headers['WWW-Authenticate']}")
