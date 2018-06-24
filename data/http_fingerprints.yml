@@ -2415,10 +2415,10 @@
     match: ''
 - probes:
   - method: HEAD
-    path: /lc/system/console
+    path: /system/console
   category: management
   matches:
-  - output: Adobe LiveCycle Management Console
+  - output: OSGi Management Console
     match: OSGi Management Console
 - probes:
   - method: HEAD
