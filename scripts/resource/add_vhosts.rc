@@ -3,7 +3,7 @@
 	# Helper functions #
 	####################
 
-	def run_auxiliary_module(mod, opts, as_job: false, quiet: false, dry_run: false)
+	def run_auxiliary_module(mod, opts, as_job: false, quiet: false, dry_run: true)
 		m = framework.auxiliary.create(mod)
 		unless m.nil?
 			opts.each do |o, v|
@@ -77,7 +77,7 @@
 
         # Run module
         opts = { 'ShowProgress' => progress, 'VERBOSE' => verbose, 'RHOSTS' => rhosts, 'RPORT' => rport, 'SSL' => ssl, 'VHOST' => vhost}
-        run_auxiliary_module(mod, opts, false, false, true)
+        run_auxiliary_module(mod, opts)
         print_line if verbose
       end
     end
