@@ -3,7 +3,7 @@
 	# Helper functions #
 	####################
 
-	def run_auxiliary_module(mod, opts, as_job: false, quiet: false, dry_run: true)
+	def run_auxiliary_module(mod, opts, as_job: false, quiet: false, dry_run: false)
 		m = framework.auxiliary.create(mod)
 		unless m.nil?
 			opts.each do |o, v|
