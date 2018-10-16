@@ -162,13 +162,13 @@ module Msf
           driver.init_ui(driver.input, Rex::Ui::Text::Output::Tee.new(spool_file))
 
           # Restore the prompt so we don't get "msf >  >".
-          prompt = framework.datastore['Prompt'] || Msf::Ui::Console::Driver::DefaultPrompt
-          prompt_char = framework.datastore['PromptChar'] || Msf::Ui::Console::Driver::DefaultPromptChar
-          if active_module # if there is an active module, give them the fanciness they have come to expect
-            driver.update_prompt("#{prompt} #{mod.type}(%bld%red#{mod.shortname}%clr) ", prompt_char, true)
-          else
-            driver.update_prompt("#{prompt} ", prompt_char, true)
-          end
+          #prompt = framework.datastore['Prompt'] || Msf::Ui::Console::Driver::DefaultPrompt
+          #prompt_char = framework.datastore['PromptChar'] || Msf::Ui::Console::Driver::DefaultPromptChar
+          #if active_module # if there is an active module, give them the fanciness they have come to expect
+          #  driver.update_prompt("#{prompt} #{mod.type}(%bld%red#{mod.shortname}%clr) ", prompt_char, true)
+          #else
+          #  driver.update_prompt("#{prompt} ", prompt_char, true)
+          #end
 
           print_line("Spooling to file #{spool_file}...")
           print_line("Successfully migrated to #{project_name}")
@@ -262,13 +262,13 @@ module Msf
         driver.init_ui(driver.input, Rex::Ui::Text::Output::Tee.new(spool_file))
 
         # Restore the prompt so we don't get "msf >  >".
-        prompt = framework.datastore['Prompt'] || Msf::Ui::Console::Driver::DefaultPrompt
-        prompt_char = framework.datastore['PromptChar'] || Msf::Ui::Console::Driver::DefaultPromptChar
-        if active_module # if there is an active module, give them the fanciness they have come to expect
-          driver.update_prompt("#{prompt} #{mod.type}(%bld%red#{mod.shortname}%clr) ", prompt_char, true)
-        else
-          driver.update_prompt("#{prompt} ", prompt_char, true)
-        end
+        #prompt = framework.datastore['Prompt'] || Msf::Ui::Console::Driver::DefaultPrompt
+        #prompt_char = framework.datastore['PromptChar'] || Msf::Ui::Console::Driver::DefaultPromptChar
+        #if active_module # if there is an active module, give them the fanciness they have come to expect
+        #  driver.update_prompt("#{prompt} #{mod.type}(%bld%red#{mod.shortname}%clr) ", prompt_char, true)
+        #else
+        #  driver.update_prompt("#{prompt} ", prompt_char, true)
+        #end
         print_line("Spooling to file #{spool_file}...")
         return true
       end
@@ -288,13 +288,13 @@ module Msf
           driver.init_ui(driver.input, Rex::Ui::Text::Output::Tee.new(spool_file))
 
           # Restore the prompt so we don't get "msf >  >".
-          prompt = framework.datastore['Prompt'] || Msf::Ui::Console::Driver::DefaultPrompt
-          prompt_char = framework.datastore['PromptChar'] || Msf::Ui::Console::Driver::DefaultPromptChar
-          if active_module # if there is an active module, give them the fanciness they have come to expect
-            driver.update_prompt("#{prompt} #{mod.type}(%bld%red#{mod.shortname}%clr) ", prompt_char, true)
-          else
-            driver.update_prompt("#{prompt} ", prompt_char, true)
-          end
+          #prompt = framework.datastore['Prompt'] || Msf::Ui::Console::Driver::DefaultPrompt
+          #prompt_char = framework.datastore['PromptChar'] || Msf::Ui::Console::Driver::DefaultPromptChar
+          #if active_module # if there is an active module, give them the fanciness they have come to expect
+          #  driver.update_prompt("#{prompt} #{mod.type}(%bld%red#{mod.shortname}%clr) ", prompt_char, true)
+          #else
+          #  driver.update_prompt("#{prompt} ", prompt_char, true)
+          #end
 
           print_line("Spooling to file #{spool_file}...")
         else
