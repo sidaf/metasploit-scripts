@@ -92,9 +92,9 @@ class MetasploitModule < Msf::Auxiliary
       pipe = ::Open3::popen3(command)
       pid = pipe.last.pid
       print_status("Starting Nmap with pid #{pid}")
-      print_status
-      print_status("# #{command}")
-      print_status
+      #print_status
+      #print_status("# #{command}")
+      #print_status
       output_threads = []
 
       output_threads << framework.threads.spawn("Module(#{self.refname})-#{pid}-stdout", false, pipe[1]) do |out_pipe|
